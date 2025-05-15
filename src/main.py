@@ -1,10 +1,11 @@
 from parser import parse
-from backend import process
+from backend import Backend
 
 def main():
     print("Simple Arithmetic Compiler")
     print("Enter arithmetic expressions (e.g., 1 + 2, (3 + 4) * 5)")
     print("Type 'exit' to quit")
+    backend = Backend()
     while True:
         try:
             s = input('compiler > ')
@@ -13,7 +14,7 @@ def main():
             ast = parse(s)
             if ast is not None:
                 print("Abstract Syntax Tree:", ast)
-                intermediate, target = process(ast)
+                intermediate, target = backend.process(ast)
                 print("Intermediate Code:")
                 for line in intermediate:
                     print(line)
