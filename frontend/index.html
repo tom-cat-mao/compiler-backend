@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compiler Frontend</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        .input-section {
+            margin-bottom: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .results {
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .stage {
+            margin-bottom: 15px;
+        }
+        pre {
+            background-color: #f8f8f8;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="container">
+        <div class="input-section">
+            <h1>Compiler Frontend</h1>
+            <textarea v-model="expression" placeholder="Enter arithmetic expression (e.g., 1 + 2 * 3)"></textarea>
+            <button @click="compile">Compile</button>
+        </div>
+        <div class="results" v-if="results">
+            <div class="stage">
+                <h2>Abstract Syntax Tree (AST)</h2>
+                <pre>{{ results.ast }}</pre>
+            </div>
+            <div class="stage">
+                <h2>Intermediate Code</h2>
+                <pre>{{ results.intermediate }}</pre>
+            </div>
+            <div class="stage">
+                <h2>Optimized Code</h2>
+                <pre>{{ results.optimized }}</pre>
+            </div>
+            <div class="stage">
+                <h2>Target Code</h2>
+                <pre>{{ results.target }}</pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                expression: '',
+                results: null
+            },
+            methods: {
+                compile() {
+                    if (!this.expression.trim()) {
+                        alert('Please enter an expression');
+                        return;
+                    }
+                    fetch('http://localhost:5000/compile', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ expression: this.expression })
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        this.results = data;
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Failed to compile expression. Please check the console for details.');
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html>

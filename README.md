@@ -120,6 +120,39 @@ graph TD
 - **Version Control**: Use Git to manage code changes. Commit changes with meaningful messages.
 - **Code Structure**: The project is modular with separate components for parsing, semantic analysis, intermediate code generation, optimization, and target code generation. Each module is documented with comments explaining its purpose and functionality.
 
+## Frontend
+
+A web-based frontend has been developed for interacting with the compiler backend, allowing users to input arithmetic expressions and view the compilation results through a user-friendly interface.
+
+### Frontend Structure
+- **Directory**: `frontend/`
+- **Main File**: `frontend/index.html` - The primary interface for user interaction with the compiler.
+- **Test File**: `frontend/test_usability.html` - A test interface for evaluating frontend usability.
+
+### Frontend Content
+- **Input Field**: Allows users to enter arithmetic expressions (e.g., `1 + 2 * 3`).
+- **Compile Button**: Triggers the compilation process by sending the input expression to the backend API.
+- **Results Display**: Shows the compilation results in four sections:
+  - **Abstract Syntax Tree (AST)**: The parsed structure of the expression.
+  - **Intermediate Code**: The three-address code representation.
+  - **Optimized Code**: The intermediate code after optimizations like constant folding.
+  - **Target Code**: The final assembly-like code.
+
+The frontend is built using Vue.js, included via a CDN for simplicity, avoiding complex build tools and ensuring a lightweight setup.
+
+### Starting the Frontend and Backend
+- **Frontend**: Open `frontend/index.html` directly in a web browser to access the compiler interface. No additional setup or server is required for the frontend.
+- **Backend API**: The backend must be running to process compilation requests. Use Docker Compose to start the API service:
+  ```bash
+  docker-compose up --build compiler-backend-api
+  ```
+  This command builds and starts the Flask API server on port 5000, which handles requests from the frontend.
+
+Ensure the backend API is running before using the frontend to compile expressions. If you need to stop the backend service, use:
+```bash
+docker-compose down
+```
+
 ## License
 
 MIT

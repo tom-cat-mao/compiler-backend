@@ -5,7 +5,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install dependencies
-RUN pip install ply
+RUN pip install ply flask flask-cors requests
 
 # Copy project files
 COPY . .
