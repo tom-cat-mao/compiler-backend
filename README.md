@@ -44,7 +44,7 @@ The compiler backend processes arithmetic expressions through a multi-stage pipe
    ```
 
 ### Docker Environment Setup
-You can use either direct Docker commands or Docker Compose for a simplified process.
+You can use either direct Docker commands or Docker Compose for a simplified process. Note that the Docker environment now uses Python 3.11 for enhanced features and compatibility.
 
 #### Using Docker Commands
 1. **Build and Run Container**: Use Docker for a consistent environment with all dependencies.
@@ -73,6 +73,47 @@ You can use either direct Docker commands or Docker Compose for a simplified pro
    ```bash
    docker-compose down
    ```
+
+## Collaborative Development
+
+This section provides guidelines for team members to collaborate effectively on the Compiler-Backend project, ensuring code quality, consistency, and smooth integration.
+
+### Version Control with Git
+- **Branching Strategy**: Use feature branches for new developments or bug fixes. Name branches descriptively (e.g., `feature/add-optimization`, `bugfix/fix-parser-error`).
+- **Committing Changes**: Write clear, concise commit messages that describe the purpose of the changes. Follow a consistent format, such as starting with a verb in the imperative mood (e.g., "Add optimization for constant folding").
+- **Pushing to Remote**: Regularly push your changes to the remote repository to keep the team updated and to enable collaboration.
+
+### Environment Setup with Docker
+- **Consistency**: Use Docker to ensure all developers work in the same environment, avoiding "works on my machine" issues. The project is configured to use Python 3.11 in the Docker image.
+- **Using Docker Compose**: Prefer Docker Compose for simplicity. Run `docker-compose up --build` to start the development environment. This mounts the project directory, allowing live code changes.
+
+### Code Review Process
+- **Pull Requests**: Before merging code into the main branch, create a pull request (PR) on the repository. Assign relevant team members for review.
+- **Review Guidelines**: Reviewers should check for code quality, adherence to project style, functionality, and test coverage. Provide constructive feedback and suggest improvements.
+- **Approval**: Code should only be merged after at least one approval from a team member, ensuring multiple eyes on critical changes.
+
+### Testing Guidelines
+- **Mandatory Testing**: All code changes must pass the unit tests before merging. Run tests with `python run_tests.py` inside the Docker container or locally.
+- **Writing Tests**: When adding new functionality, include corresponding unit tests in the `tests/` directory to maintain coverage and reliability.
+- **Automation**: If possible, set up CI/CD pipelines to automatically run tests on pull requests, ensuring stability.
+
+### Running the Project
+- **Interactive Mode**: Run the compiler with `python src/main.py` to interact with it. Input arithmetic expressions like `1 + 2 * 3` and see the compilation stages output.
+- **Exit**: Type `exit` to quit the interactive mode.
+
+### Collaborative Workflow Diagram
+Below is a visual representation of the collaborative development workflow:
+
+```mermaid
+graph TD
+    A[Create Feature Branch] --> B[Develop Code]
+    B --> C[Commit Changes]
+    C --> D[Push to Remote]
+    D --> E[Create Pull Request]
+    E --> F[Code Review]
+    F -->|Approved| G[Merge to Main]
+    F -->|Changes Needed| B
+```
 
 ## Development
 
