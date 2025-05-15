@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compiler Frontend</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+    <link rel="stylesheet" href="css/index.css">
+</head>
+<body>
+    <div id="app" class="container">
+        <div class="input-section">
+            <h1>Compiler Frontend</h1>
+            <textarea v-model="expression" placeholder="Enter arithmetic expression (e.g., 1 + 2 * 3)"></textarea>
+            <button @click="compile">Compile</button>
+        </div>
+        <div class="results" v-if="results">
+            <div class="stage">
+                <h2>Abstract Syntax Tree (AST)</h2>
+                <pre>{{ results.ast }}</pre>
+            </div>
+            <div class="stage">
+                <h2>Intermediate Code</h2>
+                <pre>{{ results.intermediate }}</pre>
+            </div>
+            <div class="stage">
+                <h2>Optimized Code</h2>
+                <pre>{{ results.optimized }}</pre>
+            </div>
+            <div class="stage">
+                <h2>Target Code</h2>
+                <pre>{{ results.target }}</pre>
+            </div>
+        </div>
+    </div>
+
+    <script src="../script/index.js"></script>
+</body>
+</html>

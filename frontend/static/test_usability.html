@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compiler Frontend Usability Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+    <link rel="stylesheet" href="css/test_usability.css">
+</head>
+<body>
+    <div id="app" class="container">
+        <div class="input-section">
+            <h1>Compiler Frontend Usability Test</h1>
+            <textarea v-model="expression" placeholder="Enter arithmetic expression (e.g., 1 + 2 * 3)"></textarea>
+            <button @click="compile">Compile</button>
+            <button @click="runTests">Run Tests</button>
+        </div>
+        <div class="results" v-if="results">
+            <div class="stage">
+                <h2>Abstract Syntax Tree (AST)</h2>
+                <pre>{{ results.ast }}</pre>
+            </div>
+            <div class="stage">
+                <h2>Intermediate Code</h2>
+                <pre>{{ results.intermediate }}</pre>
+            </div>
+            <div class="stage">
+                <h2>Optimized Code</h2>
+                <pre>{{ results.optimized }}</pre>
+            </div>
+            <div class="stage">
+                <h2>Target Code</h2>
+                <pre>{{ results.target }}</pre>
+            </div>
+        </div>
+        <div class="test-log" v-if="testLogs.length > 0">
+            <h2>Test Logs</h2>
+            <div v-for="log in testLogs" :class="log.status === 'PASS' ? 'test-pass' : 'test-fail'">
+                {{ log.message }}
+            </div>
+        </div>
+    </div>
+
+    <script src="../script/test_usability.js"></script>
+</body>
+</html>
