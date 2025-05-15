@@ -5,20 +5,25 @@ from target import TargetCodeGenerator
 
 class Backend:
     def __init__(self):
-        self.semantic_analyzer = SemanticAnalyzer()
-        self.intermediate_generator = IntermediateCodeGenerator()
-        self.optimizer = Optimizer()
-        self.target_generator = TargetCodeGenerator()
+        # Initialize all backend components for the compiler pipeline
+        self.semantic_analyzer = SemanticAnalyzer()        # Handles semantic checks
+        self.intermediate_generator = IntermediateCodeGenerator()  # Generates three-address code
+        self.optimizer = Optimizer()                      # Optimizes the intermediate code
+        self.target_generator = TargetCodeGenerator()     # Converts to target assembly-like code
 
     def process(self, ast):
-        # Step 1: Semantic Analysis
+        """
+        Process the Abstract Syntax Tree (AST) through the compiler backend pipeline.
+        Returns a tuple of intermediate code and target code.
+        """
+        # Step 1: Semantic Analysis - Validate the AST for semantic correctness
         checked_ast = self.semantic_analyzer.analyze(ast)
-        # Step 2: Intermediate Code Generation
+        # Step 2: Intermediate Code Generation - Convert AST to three-address code
         self.intermediate_generator.generate(checked_ast)
         intermediate_code = self.intermediate_generator.get_code()
-        # Step 3: Optimization
+        # Step 3: Optimization - Apply optimizations like constant folding
         optimized_code = self.optimizer.optimize(intermediate_code)
-        # Step 4: Target Code Generation
+        # Step 4: Target Code Generation - Convert optimized code to assembly-like instructions
         target_code = self.target_generator.generate(optimized_code)
         return intermediate_code, target_code
 

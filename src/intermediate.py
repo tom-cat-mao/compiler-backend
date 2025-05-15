@@ -1,7 +1,8 @@
 class IntermediateCodeGenerator:
     def __init__(self):
-        self.temp_count = 0
-        self.code = []
+        # Initialize counters and storage for intermediate code generation
+        self.temp_count = 0  # Counter for generating unique temporary variable names
+        self.code = []       # List to store the generated three-address code instructions
 
     def new_temp(self):
         """Generate a new temporary variable name."""
@@ -10,21 +11,33 @@ class IntermediateCodeGenerator:
         return temp
 
     def generate(self, ast):
-        """Generate three-address code from the AST."""
-        self.code = []
-        self.temp_count = 0
-        return self._gen_code(ast)
+        """
+        Generate three-address code from the Abstract Syntax Tree (AST).
+        Three-address code is an intermediate representation where each instruction
+        has at most three operands, simplifying further processing and optimization.
+        Resets the code list and temporary counter before generation.
+        Returns the result of the code generation process (a temporary variable or value).
+        """
+        self.code = []       # Reset the code list for a new generation
+        self.temp_count = 0  # Reset the temporary variable counter
+        return self._gen_code(ast)  # Start recursive code generation
 
     def _gen_code(self, node):
-        """Recursively generate code for the AST node."""
-        if isinstance(node, int):
+        """
+        Recursively generate three-address code for the given AST node.
+        If the node is a number (integer), return it directly.
+        If the node is an operation, recursively generate code for left and right operands,
+        create a new temporary variable, and store the operation result in it.
+        Returns the temporary variable name or the numeric value.
+        """
+        if isinstance(node, int):  # Base case: node is a numeric value
             return node
-        op, left, right = node
-        left_val = self._gen_code(left)
-        right_val = self._gen_code(right)
-        temp = self.new_temp()
-        self.code.append(f"{temp} = {left_val} {op} {right_val}")
-        return temp
+        op, left, right = node  # Unpack operation node into operator and operands
+        left_val = self._gen_code(left)    # Recursively get value or temp for left operand
+        right_val = self._gen_code(right)  # Recursively get value or temp for right operand
+        temp = self.new_temp()             # Generate a new temporary variable name
+        self.code.append(f"{temp} = {left_val} {op} {right_val}")  # Add instruction to code
+        return temp                        # Return the temporary variable name
 
     def get_code(self):
         """Return the generated intermediate code."""
