@@ -6,9 +6,9 @@ _tabversion = '3.10'
 
 _lr_method = 'LALR'
 
-_lr_signature = 'LPAREN NUMBER PLUS RPAREN TIMESexpression : expression PLUS termexpression : termterm : term TIMES factorterm : factorfactor : LPAREN expression RPARENfactor : NUMBER'
+_lr_signature = 'AND ASSIGN BEGIN BOOLEAN COLON COMMA DIVIDE DO DOT ELSE END EQ GE GT ID IF INTEGER LE LPAREN LT MINUS NUMBER PLUS PROGRAM RPAREN SEMICOLON STRING THEN TIMES VAR WHILE WRITELNprogram : PROGRAM ID SEMICOLON var_declarations BEGIN statements END DOTvar_declarations : VAR var_list\n                        | var_list : var_list var_declaration\n                | var_declarationvar_declaration : id_list COLON type SEMICOLONid_list : id_list COMMA ID\n               | IDtype : INTEGER\n            | BOOLEANstatements : statements statement SEMICOLON\n                  | statement SEMICOLON\n                  | statements statement\n                  | statementstatement : assignment\n                 | if_statement\n                 | while_statement\n                 | writeln_statementassignment : ID ASSIGN expressionif_statement : IF expression THEN BEGIN statements END\n                    | IF expression THEN BEGIN statements END ELSE BEGIN statements ENDwhile_statement : WHILE expression DO BEGIN statements ENDwriteln_statement : WRITELN LPAREN expression RPAREN\n                         | WRITELN LPAREN string_expression_list RPARENstring_expression_list : string_expression_list COMMA string_expression\n                              | string_expressionstring_expression : expression\n                         | STRINGexpression : simple_expression\n                  | simple_expression relop simple_expressionsimple_expression : term\n                         | simple_expression addop termterm : factor\n            | term mulop factorfactor : LPAREN expression RPAREN\n              | NUMBER\n              | IDaddop : PLUS\n             | MINUSmulop : TIMES\n             | DIVIDErelop : LT\n             | GT\n             | EQ\n             | LE\n             | GEexpression : expression AND expression'
     
-_lr_action_items = {'LPAREN':([0,4,6,7,],[4,4,4,4,]),'NUMBER':([0,4,6,7,],[5,5,5,5,]),'$end':([1,2,3,5,9,10,11,],[0,-2,-4,-6,-1,-3,-5,]),'PLUS':([1,2,3,5,8,9,10,11,],[6,-2,-4,-6,6,-1,-3,-5,]),'RPAREN':([2,3,5,8,9,10,11,],[-2,-4,-6,11,-1,-3,-5,]),'TIMES':([2,3,5,9,10,11,],[7,-4,-6,7,-3,-5,]),}
+_lr_action_items = {'PROGRAM':([0,],[2,]),'$end':([1,43,],[0,-1,]),'ID':([2,6,7,8,9,13,14,15,16,17,18,19,20,22,24,25,27,28,30,31,32,33,34,35,37,42,44,46,47,48,49,50,51,52,53,54,55,56,57,58,65,66,67,68,69,70,71,72,73,74,75,76,77,80,81,83,84,85,],[3,11,12,11,-5,12,-14,-15,-16,-17,-18,35,35,-4,41,35,-13,-12,-29,-31,-33,35,-36,-37,35,-19,-11,35,35,35,-42,-43,-44,-45,-46,-38,-39,35,-40,-41,-6,12,-47,-30,-32,-34,-35,12,-23,-24,35,12,12,-20,-22,12,12,-21,]),'SEMICOLON':([3,14,15,16,17,18,27,30,31,32,34,35,38,39,40,42,67,68,69,70,71,73,74,80,81,85,],[4,28,-15,-16,-17,-18,44,-29,-31,-33,-36,-37,65,-9,-10,-19,-47,-30,-32,-34,-35,-23,-24,-20,-22,-21,]),'VAR':([4,],[6,]),'BEGIN':([4,5,8,9,22,45,60,65,82,],[-3,7,-2,-5,-4,66,72,-6,83,]),'IF':([7,13,14,15,16,17,18,27,28,30,31,32,34,35,42,44,66,67,68,69,70,71,72,73,74,76,77,80,81,83,84,85,],[19,19,-14,-15,-16,-17,-18,-13,-12,-29,-31,-33,-36,-37,-19,-11,19,-47,-30,-32,-34,-35,19,-23,-24,19,19,-20,-22,19,19,-21,]),'WHILE':([7,13,14,15,16,17,18,27,28,30,31,32,34,35,42,44,66,67,68,69,70,71,72,73,74,76,77,80,81,83,84,85,],[20,20,-14,-15,-16,-17,-18,-13,-12,-29,-31,-33,-36,-37,-19,-11,20,-47,-30,-32,-34,-35,20,-23,-24,20,20,-20,-22,20,20,-21,]),'WRITELN':([7,13,14,15,16,17,18,27,28,30,31,32,34,35,42,44,66,67,68,69,70,71,72,73,74,76,77,80,81,83,84,85,],[21,21,-14,-15,-16,-17,-18,-13,-12,-29,-31,-33,-36,-37,-19,-11,21,-47,-30,-32,-34,-35,21,-23,-24,21,21,-20,-22,21,21,-21,]),'COLON':([10,11,41,],[23,-8,-7,]),'COMMA':([10,11,30,31,32,34,35,41,61,62,63,64,67,68,69,70,71,78,79,],[24,-8,-29,-31,-33,-36,-37,-7,-27,75,-26,-28,-47,-30,-32,-34,-35,-25,-27,]),'ASSIGN':([12,],[25,]),'END':([13,14,15,16,17,18,27,28,30,31,32,34,35,42,44,67,68,69,70,71,73,74,76,77,80,81,84,85,],[26,-14,-15,-16,-17,-18,-13,-12,-29,-31,-33,-36,-37,-19,-11,-47,-30,-32,-34,-35,-23,-24,80,81,-20,-22,85,-21,]),'LPAREN':([19,20,21,25,33,37,46,47,48,49,50,51,52,53,54,55,56,57,58,75,],[33,33,37,33,33,33,33,33,33,-42,-43,-44,-45,-46,-38,-39,33,-40,-41,33,]),'NUMBER':([19,20,25,33,37,46,47,48,49,50,51,52,53,54,55,56,57,58,75,],[34,34,34,34,34,34,34,34,-42,-43,-44,-45,-46,-38,-39,34,-40,-41,34,]),'INTEGER':([23,],[39,]),'BOOLEAN':([23,],[40,]),'DOT':([26,],[43,]),'THEN':([29,30,31,32,34,35,67,68,69,70,71,],[45,-29,-31,-33,-36,-37,-47,-30,-32,-34,-35,]),'AND':([29,30,31,32,34,35,36,42,59,61,67,68,69,70,71,79,],[46,-29,-31,-33,-36,-37,46,46,46,46,46,-30,-32,-34,-35,46,]),'DO':([30,31,32,34,35,36,67,68,69,70,71,],[-29,-31,-33,-36,-37,60,-47,-30,-32,-34,-35,]),'RPAREN':([30,31,32,34,35,59,61,62,63,64,67,68,69,70,71,78,79,],[-29,-31,-33,-36,-37,71,73,74,-26,-28,-47,-30,-32,-34,-35,-25,-27,]),'LT':([30,31,32,34,35,69,70,71,],[49,-31,-33,-36,-37,-32,-34,-35,]),'GT':([30,31,32,34,35,69,70,71,],[50,-31,-33,-36,-37,-32,-34,-35,]),'EQ':([30,31,32,34,35,69,70,71,],[51,-31,-33,-36,-37,-32,-34,-35,]),'LE':([30,31,32,34,35,69,70,71,],[52,-31,-33,-36,-37,-32,-34,-35,]),'GE':([30,31,32,34,35,69,70,71,],[53,-31,-33,-36,-37,-32,-34,-35,]),'PLUS':([30,31,32,34,35,68,69,70,71,],[54,-31,-33,-36,-37,54,-32,-34,-35,]),'MINUS':([30,31,32,34,35,68,69,70,71,],[55,-31,-33,-36,-37,55,-32,-34,-35,]),'TIMES':([31,32,34,35,69,70,71,],[57,-33,-36,-37,57,-34,-35,]),'DIVIDE':([31,32,34,35,69,70,71,],[58,-33,-36,-37,58,-34,-35,]),'STRING':([37,75,],[64,64,]),'ELSE':([80,],[82,]),}
 
 _lr_action = {}
 for _k, _v in _lr_action_items.items():
@@ -17,7 +17,7 @@ for _k, _v in _lr_action_items.items():
       _lr_action[_x][_k] = _y
 del _lr_action_items
 
-_lr_goto_items = {'expression':([0,4,],[1,8,]),'term':([0,4,6,],[2,2,9,]),'factor':([0,4,6,7,],[3,3,3,10,]),}
+_lr_goto_items = {'program':([0,],[1,]),'var_declarations':([4,],[5,]),'var_list':([6,],[8,]),'var_declaration':([6,8,],[9,22,]),'id_list':([6,8,],[10,10,]),'statements':([7,66,72,83,],[13,76,77,84,]),'statement':([7,13,66,72,76,77,83,84,],[14,27,14,14,27,27,14,27,]),'assignment':([7,13,66,72,76,77,83,84,],[15,15,15,15,15,15,15,15,]),'if_statement':([7,13,66,72,76,77,83,84,],[16,16,16,16,16,16,16,16,]),'while_statement':([7,13,66,72,76,77,83,84,],[17,17,17,17,17,17,17,17,]),'writeln_statement':([7,13,66,72,76,77,83,84,],[18,18,18,18,18,18,18,18,]),'expression':([19,20,25,33,37,46,75,],[29,36,42,59,61,67,79,]),'simple_expression':([19,20,25,33,37,46,47,75,],[30,30,30,30,30,30,68,30,]),'term':([19,20,25,33,37,46,47,48,75,],[31,31,31,31,31,31,31,69,31,]),'factor':([19,20,25,33,37,46,47,48,56,75,],[32,32,32,32,32,32,32,32,70,32,]),'type':([23,],[38,]),'relop':([30,],[47,]),'addop':([30,68,],[48,48,]),'mulop':([31,69,],[56,56,]),'string_expression_list':([37,],[62,]),'string_expression':([37,75,],[63,78,]),}
 
 _lr_goto = {}
 for _k, _v in _lr_goto_items.items():
@@ -26,11 +26,52 @@ for _k, _v in _lr_goto_items.items():
        _lr_goto[_x][_k] = _y
 del _lr_goto_items
 _lr_productions = [
-  ("S' -> expression","S'",1,None,None,None),
-  ('expression -> expression PLUS term','expression',3,'p_expression_plus','parser.py',29),
-  ('expression -> term','expression',1,'p_expression_term','parser.py',33),
-  ('term -> term TIMES factor','term',3,'p_term_times','parser.py',37),
-  ('term -> factor','term',1,'p_term_factor','parser.py',41),
-  ('factor -> LPAREN expression RPAREN','factor',3,'p_factor_expr','parser.py',45),
-  ('factor -> NUMBER','factor',1,'p_factor_number','parser.py',49),
+  ("S' -> program","S'",1,None,None,None),
+  ('program -> PROGRAM ID SEMICOLON var_declarations BEGIN statements END DOT','program',8,'p_program','parser.py',98),
+  ('var_declarations -> VAR var_list','var_declarations',2,'p_var_declarations','parser.py',102),
+  ('var_declarations -> <empty>','var_declarations',0,'p_var_declarations','parser.py',103),
+  ('var_list -> var_list var_declaration','var_list',2,'p_var_list','parser.py',110),
+  ('var_list -> var_declaration','var_list',1,'p_var_list','parser.py',111),
+  ('var_declaration -> id_list COLON type SEMICOLON','var_declaration',4,'p_var_declaration','parser.py',118),
+  ('id_list -> id_list COMMA ID','id_list',3,'p_id_list','parser.py',122),
+  ('id_list -> ID','id_list',1,'p_id_list','parser.py',123),
+  ('type -> INTEGER','type',1,'p_type','parser.py',130),
+  ('type -> BOOLEAN','type',1,'p_type','parser.py',131),
+  ('statements -> statements statement SEMICOLON','statements',3,'p_statements','parser.py',135),
+  ('statements -> statement SEMICOLON','statements',2,'p_statements','parser.py',136),
+  ('statements -> statements statement','statements',2,'p_statements','parser.py',137),
+  ('statements -> statement','statements',1,'p_statements','parser.py',138),
+  ('statement -> assignment','statement',1,'p_statement','parser.py',148),
+  ('statement -> if_statement','statement',1,'p_statement','parser.py',149),
+  ('statement -> while_statement','statement',1,'p_statement','parser.py',150),
+  ('statement -> writeln_statement','statement',1,'p_statement','parser.py',151),
+  ('assignment -> ID ASSIGN expression','assignment',3,'p_assignment','parser.py',155),
+  ('if_statement -> IF expression THEN BEGIN statements END','if_statement',6,'p_if_statement','parser.py',159),
+  ('if_statement -> IF expression THEN BEGIN statements END ELSE BEGIN statements END','if_statement',10,'p_if_statement','parser.py',160),
+  ('while_statement -> WHILE expression DO BEGIN statements END','while_statement',6,'p_while_statement','parser.py',167),
+  ('writeln_statement -> WRITELN LPAREN expression RPAREN','writeln_statement',4,'p_writeln_statement','parser.py',171),
+  ('writeln_statement -> WRITELN LPAREN string_expression_list RPAREN','writeln_statement',4,'p_writeln_statement','parser.py',172),
+  ('string_expression_list -> string_expression_list COMMA string_expression','string_expression_list',3,'p_string_expression_list','parser.py',179),
+  ('string_expression_list -> string_expression','string_expression_list',1,'p_string_expression_list','parser.py',180),
+  ('string_expression -> expression','string_expression',1,'p_string_expression','parser.py',187),
+  ('string_expression -> STRING','string_expression',1,'p_string_expression','parser.py',188),
+  ('expression -> simple_expression','expression',1,'p_expression','parser.py',192),
+  ('expression -> simple_expression relop simple_expression','expression',3,'p_expression','parser.py',193),
+  ('simple_expression -> term','simple_expression',1,'p_simple_expression','parser.py',200),
+  ('simple_expression -> simple_expression addop term','simple_expression',3,'p_simple_expression','parser.py',201),
+  ('term -> factor','term',1,'p_term','parser.py',208),
+  ('term -> term mulop factor','term',3,'p_term','parser.py',209),
+  ('factor -> LPAREN expression RPAREN','factor',3,'p_factor','parser.py',216),
+  ('factor -> NUMBER','factor',1,'p_factor','parser.py',217),
+  ('factor -> ID','factor',1,'p_factor','parser.py',218),
+  ('addop -> PLUS','addop',1,'p_addop','parser.py',225),
+  ('addop -> MINUS','addop',1,'p_addop','parser.py',226),
+  ('mulop -> TIMES','mulop',1,'p_mulop','parser.py',230),
+  ('mulop -> DIVIDE','mulop',1,'p_mulop','parser.py',231),
+  ('relop -> LT','relop',1,'p_relop','parser.py',235),
+  ('relop -> GT','relop',1,'p_relop','parser.py',236),
+  ('relop -> EQ','relop',1,'p_relop','parser.py',237),
+  ('relop -> LE','relop',1,'p_relop','parser.py',238),
+  ('relop -> GE','relop',1,'p_relop','parser.py',239),
+  ('expression -> expression AND expression','expression',3,'p_expression_logical','parser.py',243),
 ]
