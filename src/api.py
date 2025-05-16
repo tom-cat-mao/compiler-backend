@@ -18,8 +18,9 @@ def compile():
     program = data.get('program', '')
     
     if not program:
-        return jsonify({'error': 'No program provided'}), 400
+        return jsonify({'error': 'No program provided. Please enter a valid Pascal program in the textarea.'}), 400
     
+    print(f"Received program for compilation:\n{program}")
     try:
         # Step 1: Lexical Analysis - Generate token sequence
         lexer.input(program)
@@ -30,7 +31,7 @@ def compile():
         # Step 2: Parse the program to AST
         ast = parse(program)
         if ast is None:
-            return jsonify({'error': 'Invalid program syntax'}), 400
+            return jsonify({'error': 'Invalid program syntax. Please check your Pascal code for correct structure (e.g., program declaration, begin/end blocks).'}), 400
         
         # Step 3: Semantic Analysis - Build symbol table
         analyzer = SemanticAnalyzer()
