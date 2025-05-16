@@ -1,13 +1,13 @@
 new Vue({
     el: '#app',
     data: {
-        expression: '',
+        program: '',
         results: null
     },
     methods: {
         compile() {
-            if (!this.expression.trim()) {
-                alert('Please enter an expression');
+            if (!this.program.trim()) {
+                alert('Please enter a Pascal program');
                 return;
             }
             fetch('http://localhost:5000/compile', {
@@ -15,7 +15,7 @@ new Vue({
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ expression: this.expression })
+                body: JSON.stringify({ program: this.program })
             })
             .then(response => {
                 if (!response.ok) {
@@ -28,7 +28,7 @@ new Vue({
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Failed to compile expression. Please check the console for details.');
+                alert('Failed to compile program. Please check the console for details.');
             });
         }
     }

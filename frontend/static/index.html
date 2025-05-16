@@ -3,33 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Compiler Frontend</title>
+    <title>Pascal Compiler Frontend</title>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
     <link rel="stylesheet" href="css/index.css">
 </head>
 <body>
     <div id="app" class="container">
         <div class="input-section">
-            <h1>Compiler Frontend</h1>
-            <textarea v-model="expression" placeholder="Enter arithmetic expression (e.g., 1 + 2 * 3)"></textarea>
+            <h1>Pascal Compiler Frontend</h1>
+            <textarea v-model="program" placeholder="Enter Pascal program (e.g., program Test; var x: integer; begin x := 5; end.)" rows="10"></textarea>
             <button @click="compile">Compile</button>
         </div>
         <div class="results" v-if="results">
             <div class="stage">
-                <h2>Abstract Syntax Tree (AST)</h2>
-                <pre>{{ results.ast }}</pre>
+                <h2>Token Sequence</h2>
+                <pre>{{ results.tokens }}</pre>
             </div>
             <div class="stage">
-                <h2>Intermediate Code</h2>
+                <h2>Symbol Table</h2>
+                <pre>{{ results.symbolTable }}</pre>
+            </div>
+            <div class="stage">
+                <h2>Intermediate Code (Four-Tuple)</h2>
                 <pre>{{ results.intermediate }}</pre>
-            </div>
-            <div class="stage">
-                <h2>Optimized Code</h2>
-                <pre>{{ results.optimized }}</pre>
-            </div>
-            <div class="stage">
-                <h2>Target Code</h2>
-                <pre>{{ results.target }}</pre>
             </div>
         </div>
     </div>
