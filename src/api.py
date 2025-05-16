@@ -5,10 +5,9 @@ import os
 
 # Adjust the path to import from the same directory
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from parser import parse
+from parser import parse, lexer
+from semantic import SemanticAnalyzer
 from intermediate import IntermediateCodeGenerator
-from optimizer import Optimizer
-from target import TargetCodeGenerator
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS to allow frontend requests from different origins
@@ -16,36 +15,43 @@ CORS(app)  # Enable CORS to allow frontend requests from different origins
 @app.route('/compile', methods=['POST'])
 def compile():
     data = request.get_json()
-    expression = data.get('expression', '')
+    program = data.get('program', '')
     
-    if not expression:
-        return jsonify({'error': 'No expression provided'}), 400
+    if not program:
+        return jsonify({'error': 'No program provided. Please enter a valid Pascal program in the textarea.'}), 400
     
+    print(f"Received program for compilation:\n{program}")
     try:
-        # Step 1: Parse the expression to AST
-        ast = parse(expression)
+        # Step 1: Lexical Analysis - Generate token sequence
+        lexer.input(program)
+        tokens = []
+        for token in lexer:
+            tokens.append(f"Token(type='{token.type}', value='{token.value}', line={token.lineno})")
+        
+        # Step 2: Parse the program to AST
+        ast = parse(program)
         if ast is None:
-            return jsonify({'error': 'Invalid expression'}), 400
+            return jsonify({'error': 'Invalid program syntax. Please check your Pascal code for correct structure (e.g., program declaration, begin/end blocks).'}), 400
         
-        # Step 2: Generate intermediate code
+        # Step 3: Semantic Analysis - Build symbol table
+        analyzer = SemanticAnalyzer()
+        analyzer.analyze(ast)
+        symbol_table = analyzer.get_symbol_table()
+        symbol_table_str = []
+        for var_name, info in symbol_table.items():
+            symbol_table_str.append(f"Variable: {var_name}, Type: {info['type']}, Initialized: {info['initialized']}")
+        
+        # Step 4: Generate intermediate code
         generator = IntermediateCodeGenerator()
-        generator.generate(ast)
-        intermediate = generator.get_code()
-        
-        # Step 3: Optimize the intermediate code
-        optimizer = Optimizer()
-        optimized = optimizer.optimize(intermediate)
-        
-        # Step 4: Generate target code
-        generator = TargetCodeGenerator()
-        target = generator.generate(optimized)
+        generator.set_symbol_table(symbol_table)
+        code = generator.generate(ast)
+        intermediate_str = [f"{i+1}: {quad}" for i, quad in enumerate(code)]
         
         # Format results for display
         return jsonify({
-            'ast': str(ast),
-            'intermediate': '\n'.join(intermediate),
-            'optimized': '\n'.join(optimized),
-            'target': '\n'.join(target)
+            'tokens': '\n'.join(tokens),
+            'symbolTable': '\n'.join(symbol_table_str) if symbol_table_str else 'No symbols defined',
+            'intermediate': '\n'.join(intermediate_str) if intermediate_str else 'No intermediate code generated'
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500

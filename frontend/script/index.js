@@ -1,25 +1,29 @@
 new Vue({
     el: '#app',
     data: {
-        expression: '',
+        program: '',
         results: null
     },
     methods: {
         compile() {
-            if (!this.expression.trim()) {
-                alert('Please enter an expression');
+            if (!this.program.trim()) {
+                alert('Please enter a Pascal program');
                 return;
             }
+            const payload = { program: this.program };
+            console.log('Sending payload to backend:', payload);
             fetch('http://localhost:5000/compile', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ expression: this.expression })
+                body: JSON.stringify(payload)
             })
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                    return response.text().then(text => {
+                        throw new Error(`Network response was not ok: ${response.status} - ${text}`);
+                    });
                 }
                 return response.json();
             })
@@ -28,7 +32,7 @@ new Vue({
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Failed to compile expression. Please check the console for details.');
+                alert('Failed to compile program. Please check the console for details.');
             });
         }
     }

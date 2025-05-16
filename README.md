@@ -4,9 +4,13 @@ This project implements a compiler backend for a simple grammar that processes b
 
 ## Project Structure
 
-- `src/`: Source code for the compiler frontend and backend.
-- `tests/`: Unit tests for the compiler components.
-- `Dockerfile`: Defines the Docker environment for development.
+- `src/`: Contains the core source code for the compiler, including modules for parsing, semantic analysis, intermediate code generation, optimization, and target code generation.
+- `tests/`: Includes unit tests for validating the functionality of compiler components.
+- `frontend/`: Houses the web-based frontend for user interaction with the compiler, including HTML, CSS, and JavaScript files.
+- `Dockerfile`: Defines the Docker image configuration for creating a consistent development environment.
+- `docker-compose.yaml`: Configuration file for Docker Compose to simplify building and running the project containers.
+- `run_tests.py`: Script to execute all unit tests in the project.
+- `run_docker_test.sh` & `run_docker_compose_test.sh`: Scripts for testing the compiler backend API within Docker environments.
 
 ## Grammar
 
@@ -78,11 +82,6 @@ You can use either direct Docker commands or Docker Compose for a simplified pro
 
 This section provides guidelines for team members to collaborate effectively on the Compiler-Backend project, ensuring code quality, consistency, and smooth integration.
 
-### Version Control with Git
-- **Branching Strategy**: Use feature branches for new developments or bug fixes. Name branches descriptively (e.g., `feature/add-optimization`, `bugfix/fix-parser-error`).
-- **Committing Changes**: Write clear, concise commit messages that describe the purpose of the changes. Follow a consistent format, such as starting with a verb in the imperative mood (e.g., "Add optimization for constant folding").
-- **Pushing to Remote**: Regularly push your changes to the remote repository to keep the team updated and to enable collaboration.
-
 ### Environment Setup with Docker
 - **Consistency**: Use Docker to ensure all developers work in the same environment, avoiding "works on my machine" issues. The project is configured to use Python 3.11 in the Docker image.
 - **Using Docker Compose**: Prefer Docker Compose for simplicity. Run `docker-compose up --build` to start the development environment. This mounts the project directory, allowing live code changes.
@@ -117,8 +116,14 @@ graph TD
 
 ## Development
 
-- **Version Control**: Use Git to manage code changes. Commit changes with meaningful messages.
 - **Code Structure**: The project is modular with separate components for parsing, semantic analysis, intermediate code generation, optimization, and target code generation. Each module is documented with comments explaining its purpose and functionality.
+
+### Debugging
+
+- **Logging**: Add print statements or use a logging library to output intermediate results or error messages during development. This can help trace the flow of data through the compiler stages.
+- **Unit Tests**: Use failing unit tests to isolate issues. Run specific tests with `python -m unittest tests.test_compiler.TestCompiler.test_specific_method` to focus on problematic areas.
+- **Interactive Debugging**: Use a debugger like `pdb` for Python. Insert `import pdb; pdb.set_trace()` at suspected points in the code to pause execution and inspect variables.
+- **Docker Debugging**: If using Docker, attach to the running container with `docker exec -it <container_name> bash` to access the environment and run debugging commands.
 
 ## Frontend
 
@@ -140,6 +145,23 @@ A web-based frontend has been developed for interacting with the compiler backen
 
 The frontend is built using Vue.js, included via a CDN for simplicity, avoiding complex build tools and ensuring a lightweight setup.
 
+### Pascal Compiler Limitations
+**Note**: The current implementation of the Pascal compiler frontend has specific limitations in the parser that may cause "Invalid program syntax" errors for certain Pascal constructs. These limitations include:
+- **Comments**: The parser does not support "//" style comments. Use (* *) style comments if needed, or avoid comments in test programs.
+- **Operators**: The "div" operator for integer division is not supported. Use "/" with appropriate type handling as a workaround.
+- **Formatted Output**: Format specifiers in writeln statements (e.g., "average:0:2") are not supported. Simplify output statements to avoid format specifiers.
+- **Complex Writeln Statements**: The parser has limited support for writeln statements with multiple arguments or string concatenation. Use single expressions or basic string literals where possible.
+
+For testing purposes, ensure your Pascal programs adhere to these constraints. A simple valid test program could be:
+```
+program Test;
+var x: integer;
+begin
+  x := 5;
+end.
+```
+We are working on extending the parser to support a broader range of Pascal syntax in future updates.
+
 ### Starting the Frontend and Backend
 - **Frontend**: Open `frontend/index.html` directly in a web browser to access the compiler interface. No additional setup or server is required for the frontend.
 - **Backend API**: The backend must be running to process compilation requests. Use Docker Compose to start the API service:
@@ -152,6 +174,21 @@ Ensure the backend API is running before using the frontend to compile expressio
 ```bash
 docker-compose down
 ```
+
+## Using Sequential Thinking for Problem Solving
+
+To enhance problem-solving and decision-making during development, you can leverage the Sequential Thinking tool provided by the Model Context Protocol (MCP) server. This tool assists in breaking down complex problems into manageable steps, allowing for dynamic and reflective analysis.
+
+- **Accessing the Tool**: Use the MCP server 'sequential-thinking' with the tool name 'sequentialthinking'. This tool is available when connected to the MCP environment.
+- **When to Use**: Ideal for complex debugging, planning new features, or resolving architectural challenges. It helps in scenarios where the problem scope isn't immediately clear or requires multi-step solutions.
+- **How to Use**: Invoke the tool with a specific thought or problem statement. Parameters include:
+  - `thought`: Your current analysis or question.
+  - `nextThoughtNeeded`: Set to `true` if further analysis is required.
+  - `thoughtNumber` and `totalThoughts`: Track the progression of your thinking process.
+  - Other parameters like `isRevision` or `branchFromThought` allow revisiting or branching thoughts for deeper exploration.
+- **Benefits**: This tool supports revising previous thoughts, expressing uncertainty, generating hypotheses, and verifying solutions, ensuring a thorough approach to problem-solving.
+
+Example usage might involve starting with an initial thought about a bug, estimating the steps needed to resolve it, and iteratively refining your approach based on new insights or test results.
 
 ## License
 

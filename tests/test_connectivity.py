@@ -1,53 +1,55 @@
 import unittest
 import requests
-import json
+import subprocess
+import time
+import os
 
-class TestFrontendBackendConnectivity(unittest.TestCase):
-    def setUp(self):
-        self.base_url = 'http://localhost:5000/compile'
-        self.headers = {'Content-Type': 'application/json'}
+class TestConnectivity(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        """Start the API server before running tests."""
+        cls.api_process = subprocess.Popen(['python', 'src/api.py'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        time.sleep(2)  # Give the server time to start
 
-    def test_valid_expression(self):
-        """Test sending a valid arithmetic expression and receiving a proper response."""
-        expression = '1 + 2 * 3'
-        payload = json.dumps({'expression': expression})
-        try:
-            response = requests.post(self.base_url, headers=self.headers, data=payload)
-            self.assertEqual(response.status_code, 200, f"Expected status code 200, got {response.status_code}")
-            data = response.json()
-            self.assertIn('ast', data, "Response does not contain 'ast' key")
-            self.assertIn('intermediate', data, "Response does not contain 'intermediate' key")
-            self.assertIn('optimized', data, "Response does not contain 'optimized' key")
-            self.assertIn('target', data, "Response does not contain 'target' key")
-            print("Test 1: Valid expression connectivity - PASS")
-        except requests.exceptions.ConnectionError:
-            self.fail("Connection to backend failed. Ensure the API server is running on localhost:5000")
+    @classmethod
+    def tearDownClass(cls):
+        """Stop the API server after tests."""
+        cls.api_process.terminate()
+        cls.api_process.wait()
 
-    def test_invalid_expression(self):
-        """Test sending an invalid expression and receiving an error response."""
-        expression = 'invalid + expression'
-        payload = json.dumps({'expression': expression})
-        try:
-            response = requests.post(self.base_url, headers=self.headers, data=payload)
-            self.assertEqual(response.status_code, 400, f"Expected status code 400, got {response.status_code}")
-            data = response.json()
-            self.assertIn('error', data, "Response does not contain 'error' key")
-            print("Test 2: Invalid expression error handling - PASS")
-        except requests.exceptions.ConnectionError:
-            self.fail("Connection to backend failed. Ensure the API server is running on localhost:5000")
+    def test_frontend_backend_connectivity(self):
+        """Test sending a simple Pascal program from frontend to backend and receiving compiler outputs."""
+        program = """
+program Test;
+var
+  x: integer;
+begin
+  x := 5;
+end.
+"""
+        response = requests.post('http://localhost:5000/compile', json={'program': program})
+        self.assertEqual(response.status_code, 200, f"Expected status code 200, got {response.status_code}")
+        data = response.json()
+        self.assertIn('tokens', data, "Response should contain 'tokens' field")
+        self.assertIn('symbolTable', data, "Response should contain 'symbolTable' field")
+        self.assertIn('intermediate', data, "Response should contain 'intermediate' field")
+        self.assertNotIn('error', data, "Response should not contain an 'error' field")
 
-    def test_empty_expression(self):
-        """Test sending an empty expression and receiving an error response."""
-        expression = ''
-        payload = json.dumps({'expression': expression})
-        try:
-            response = requests.post(self.base_url, headers=self.headers, data=payload)
-            self.assertEqual(response.status_code, 400, f"Expected status code 400, got {response.status_code}")
-            data = response.json()
-            self.assertIn('error', data, "Response does not contain 'error' key")
-            print("Test 3: Empty expression error handling - PASS")
-        except requests.exceptions.ConnectionError:
-            self.fail("Connection to backend failed. Ensure the API server is running on localhost:5000")
+    def test_invalid_program(self):
+        """Test sending an invalid Pascal program and receiving an error response."""
+        program = "invalid program code"
+        response = requests.post('http://localhost:5000/compile', json={'program': program})
+        self.assertEqual(response.status_code, 400, f"Expected status code 400, got {response.status_code}")
+        data = response.json()
+        self.assertIn('error', data, "Response should contain an 'error' field")
+
+    def test_empty_program(self):
+        """Test sending an empty program and receiving an error response."""
+        program = ""
+        response = requests.post('http://localhost:5000/compile', json={'program': program})
+        self.assertEqual(response.status_code, 400, f"Expected status code 400, got {response.status_code}")
+        data = response.json()
+        self.assertIn('error', data, "Response should contain an 'error' field")
 
 if __name__ == '__main__':
     unittest.main()
