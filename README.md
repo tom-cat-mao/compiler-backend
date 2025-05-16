@@ -145,6 +145,23 @@ A web-based frontend has been developed for interacting with the compiler backen
 
 The frontend is built using Vue.js, included via a CDN for simplicity, avoiding complex build tools and ensuring a lightweight setup.
 
+### Pascal Compiler Limitations
+**Note**: The current implementation of the Pascal compiler frontend has specific limitations in the parser that may cause "Invalid program syntax" errors for certain Pascal constructs. These limitations include:
+- **Comments**: The parser does not support "//" style comments. Use (* *) style comments if needed, or avoid comments in test programs.
+- **Operators**: The "div" operator for integer division is not supported. Use "/" with appropriate type handling as a workaround.
+- **Formatted Output**: Format specifiers in writeln statements (e.g., "average:0:2") are not supported. Simplify output statements to avoid format specifiers.
+- **Complex Writeln Statements**: The parser has limited support for writeln statements with multiple arguments or string concatenation. Use single expressions or basic string literals where possible.
+
+For testing purposes, ensure your Pascal programs adhere to these constraints. A simple valid test program could be:
+```
+program Test;
+var x: integer;
+begin
+  x := 5;
+end.
+```
+We are working on extending the parser to support a broader range of Pascal syntax in future updates.
+
 ### Starting the Frontend and Backend
 - **Frontend**: Open `frontend/index.html` directly in a web browser to access the compiler interface. No additional setup or server is required for the frontend.
 - **Backend API**: The backend must be running to process compilation requests. Use Docker Compose to start the API service:
