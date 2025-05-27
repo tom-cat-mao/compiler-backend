@@ -26,6 +26,40 @@ The compiler backend processes arithmetic expressions through a multi-stage pipe
 4. **Optimization**: Applies optimizations such as constant folding to the intermediate code, evaluating constant expressions at compile-time to reduce runtime computations (e.g., "5 + 3" becomes "8").
 5. **Target Code Generation**: Transforms the optimized intermediate code into a simple assembly-like format with instructions like LOAD, ADD, MUL, STORE, and MOV, simulating low-level operations.
 
+## Compiler Workflow Example
+
+Below is a complex example of a Pascal program that demonstrates the full workflow of the compiler through all its stages:
+
+**Input Program**:
+```pascal
+program ComplexExample;
+var
+  counter: integer;
+  total: integer;
+  isPositive: boolean;
+begin
+  counter := 10;
+  total := 5 + 3;  (* Constant folding opportunity *)
+  isPositive := counter > 0;
+  while counter > 0 do
+  begin
+    total := total + counter;
+    counter := counter - 1;
+  end;
+  if isPositive then
+    writeln('Total is: ', total)
+  else
+    writeln('Counter was not positive');
+end.
+```
+
+**Compiler Stages**:
+- **Parsing**: The input code is parsed into an Abstract Syntax Tree (AST). The AST represents the program structure with nodes for the program declaration, variable declarations (`counter`, `total`, `isPositive`), assignments, a `while` loop, an `if` conditional, and `writeln` statements. For instance, the root node is `program ComplexExample`, with child nodes for declarations and the `begin`/`end` block containing statements.
+- **Semantic Analysis**: Validates the program for correctness. It checks that variables are declared before use, ensures type compatibility (e.g., `counter > 0` results in a boolean for `isPositive`), and tracks initialization. The symbol table would list `counter` (type: integer, initialized: true), `total` (type: integer, initialized: true), and `isPositive` (type: boolean, initialized: true).
+- **Intermediate Code Generation**: Converts the AST into four-tuple intermediate code. For example, the assignment `total := 5 + 3` might generate `(+, 5, 3, t0)` and `(:=, t0, , total)`; the `while` loop uses labels and `goto` for control flow, like `(label, , , L0)`, `(if, counter > 0, , L1)`, `(goto, , , L2)`, etc., for loop body and exit.
+- **Optimization**: Applies constant folding to evaluate constant expressions at compile time. In this program, `5 + 3` is optimized to `8`, so the intermediate code for `total := 5 + 3` becomes `(:=, 8, , total)`, reducing runtime computation.
+- **Target Code Generation**: Transforms the optimized intermediate code into assembly-like instructions. For instance, `total := 8` becomes `MOV 8, total`; operations within the loop like `total := total + counter` translate to `LOAD total`, `ADD counter`, `STORE total`. Control flow and output statements are similarly mapped to low-level instructions like conditional jumps and write operations.
+
 ## Setup and Running the Project
 
 ### Python Virtual Environment Setup
@@ -57,10 +91,11 @@ The compiler backend processes arithmetic expressions through a multi-stage pipe
    python src/api.py
    ```
    - The server runs on port 5000 by default. Ensure this port is free or adjust if necessary.
-6. **Run Tests**: Execute the test suite to verify functionality.
+6. **Run Tests**: Execute the test suite to verify functionality. Ensure the `src` directory is in the PYTHONPATH to resolve module imports. Make sure dependencies are installed in the venv before running tests.
    ```bash
-   python run_tests.py
+   PYTHONPATH=$PYTHONPATH:./src python -m pytest tests/ -v
    ```
+   **Note**: If you encounter "No module named pytest", ensure you've installed the dependencies within the activated venv using `pip install -r requirements.txt` after activating the environment.
 7. **Deactivate the Environment**: When done, deactivate the virtual environment.
    ```bash
    deactivate
