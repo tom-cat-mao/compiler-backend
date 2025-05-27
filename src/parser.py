@@ -78,12 +78,18 @@ reserved = {
 def t_ID(t):
     r'[a-zA-Z][a-zA-Z0-9]*'
     t.type = reserved.get(t.value.lower(), 'ID')  # Check if it's a reserved keyword
+    print(f"Token: ID, Value: {t.value}, Line: {t.lineno}, Position: {t.lexpos}")
     return t
 
-t_ignore = ' \t\n'
+t_ignore = ' \t'
+
+def t_newline(t):
+    r'\n+'
+    t.lexer.lineno += len(t.value)
+    # Do not return the token, as it's ignored
 
 def t_error(t):
-    print(f"Illegal character '{t.value[0]}'")
+    print(f"Illegal character '{t.value[0]}' at line {t.lineno}")
     t.lexer.skip(1)
 
 lexer = lex.lex()
@@ -157,11 +163,17 @@ def p_assignment(p):
 
 def p_if_statement(p):
     '''if_statement : IF expression THEN BEGIN statements END
-                    | IF expression THEN BEGIN statements END ELSE BEGIN statements END'''
+                    | IF expression THEN BEGIN statements END ELSE BEGIN statements END
+                    | IF expression THEN statement
+                    | IF expression THEN statement ELSE statement'''
     if len(p) > 7:
         p[0] = ('if', p[2], p[5], p[9])
-    else:
+    elif len(p) == 7:
         p[0] = ('if', p[2], p[5], None)
+    elif len(p) == 6:
+        p[0] = ('if', p[2], p[4], p[5])
+    else:
+        p[0] = ('if', p[2], p[4], None)
 
 def p_while_statement(p):
     'while_statement : WHILE expression DO BEGIN statements END'
@@ -244,12 +256,22 @@ def p_expression_logical(p):
     p[0] = ('and', p[1], p[3])
 
 def p_error(p):
-    print("Syntax error in input!")
+    if p:
+        print(f"Syntax error in input at token '{p.value}' (type: {p.type}, line: {p.lineno})")
+        print(f"Parser context: Near token at position {p.lexpos}")
+    else:
+        print("Syntax error in input at EOF!")
 
 parser = yacc.yacc()
 
 def parse(input_string):
-    return parser.parse(input_string, lexer=lexer)
+    print("Starting parsing process...")
+    lexer.input(input_string)
+    print("Token stream:")
+    for tok in lexer:
+        print(f"Token: {tok.type}, Value: {tok.value}, Line: {tok.lineno}, Position: {tok.lexpos}")
+    lexer.input(input_string)  # Reset lexer for actual parsing
+    return parser.parse(input_string, lexer=lexer, debug=True)
 
 if __name__ == "__main__":
     while True:
