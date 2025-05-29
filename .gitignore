@@ -29,6 +29,7 @@ var/
 # Virtual Environment
 env/
 venv/
+myvenv/
 
 # IDE files
 .idea/
@@ -50,6 +51,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 .coveragerc
+test.txt
 
 # Docker
 docker-build/
