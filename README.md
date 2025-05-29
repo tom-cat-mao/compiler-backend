@@ -39,7 +39,7 @@ var
   isPositive: boolean;
 begin
   counter := 10;
-  total := 5 + 3;  (* Constant folding opportunity *)
+  total := 5 + 3; 
   isPositive := counter > 0;
   while counter > 0 do
   begin
@@ -47,9 +47,13 @@ begin
     counter := counter - 1;
   end;
   if isPositive then
-    writeln('Total is: ', total)
+  begin
+    writeln('Total is: ', total);
+  end
   else
+  begin
     writeln('Counter was not positive');
+  end
 end.
 ```
 
