@@ -90,8 +90,13 @@ def compile():
             else:
                 # Fallback for unmapped tokens
                 transformed_token_sequence_output.append(f"(err:{token_obj.type},{token_obj.value})")
-        
-        final_token_sequence_str = " ".join(transformed_token_sequence_output)
+
+        # Format the token sequence string with newlines (e.g., 10 tokens per line)
+        formatted_token_lines = []
+        for i in range(0, len(transformed_token_sequence_output), 10):
+            formatted_token_lines.append(" ".join(transformed_token_sequence_output[i:i+10]))
+        final_token_sequence_str = "\n".join(formatted_token_lines)
+
 
         # Step 3: Semantic Analysis - Build symbol table
         analyzer = SemanticAnalyzer()
