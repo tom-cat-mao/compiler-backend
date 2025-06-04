@@ -5,7 +5,7 @@ import os
 
 # Adjust the path to import from the same directory
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from parser import parse, lexer
+from parser import parse, lexer, tokens as parser_ply_tokens, reserved as parser_reserved_keywords
 from semantic import SemanticAnalyzer
 from intermediate import IntermediateCodeGenerator
 
@@ -22,17 +22,77 @@ def compile():
     
     print(f"Received program for compilation:\n{program}")
     try:
-        # Step 1: Lexical Analysis - Generate token sequence
-        lexer.input(program)
-        tokens = []
-        for token in lexer:
-            tokens.append(f"Token(type='{token.type}', value='{token.value}', line={token.lineno})")
-        
-        # Step 2: Parse the program to AST
-        ast = parse(program)
+        # Step 1 & 2: Lexical Analysis and Parsing
+        # The parse function from parser.py returns both collected tokens and the AST.
+        raw_tokens_from_parser, ast = parse(program)
+
         if ast is None:
-            return jsonify({'error': 'Invalid program syntax. Please check your Pascal code for correct structure (e.g., program declaration, begin/end blocks).'}), 400
+            error_msg = "Invalid program syntax."
+            if not raw_tokens_from_parser and ast is None:
+                error_msg = "Parsing failed: No tokens generated and no AST."
+            elif ast is None: # Tokens might exist but parsing failed
+                error_msg = "Invalid program syntax. AST could not be constructed."
+            return jsonify({'error': error_msg + ' Please check your Pascal code for correct structure (e.g., program declaration, begin/end blocks).'}), 400
+
+        # --- Prepare maps for the transformed token sequence (similar to main.py) ---
+        # Keyword map: keyword string (lowercase) -> pos
+        sorted_keywords_list = sorted(parser_reserved_keywords.keys())
+        keyword_to_pos = {kw: i + 1 for i, kw in enumerate(sorted_keywords_list)}
+
+        # Delimiter map: symbol string -> pos
+        _delimiter_type_to_symbol_map = {
+            'SEMICOLON': ';', 'COLON': ':', 'COMMA': ',', 'ASSIGN': ':=', 'DOT': '.',
+            'LPAREN': '(', 'RPAREN': ')', 'PLUS': '+', 'MINUS': '-', 'TIMES': '*',
+            'DIVIDE': '/', 'LT': '<', 'GT': '>', 'EQ': '=', 'LE': '<=', 'GE': '>='
+        }
+        active_delimiter_type_to_symbol = {
+            k: v for k, v in _delimiter_type_to_symbol_map.items() if k in parser_ply_tokens
+        }
+        sorted_delimiter_symbols_list = sorted(list(set(active_delimiter_type_to_symbol.values())))
+        delimiter_symbol_to_pos = {sym: i + 1 for i, sym in enumerate(sorted_delimiter_symbols_list)}
+
+        # Identifier map: identifier string -> pos (from current program's tokens)
+        unique_identifiers_list = sorted(list(set(t.value for t in raw_tokens_from_parser if t.type == 'ID')))
+        identifier_to_pos = {ident: i + 1 for i, ident in enumerate(unique_identifiers_list)}
+
+        # Constant map: constant string value -> pos (from current program's tokens)
+        unique_constants_list = sorted(list(set(str(t.value) for t in raw_tokens_from_parser if t.type == 'NUMBER' or t.type == 'STRING')))
+        constant_to_pos = {const_val: i + 1 for i, const_val in enumerate(unique_constants_list)}
         
+        # --- Generate the transformed token sequence string ---
+        transformed_token_sequence_output = []
+        for token_obj in raw_tokens_from_parser: # Use the collected token objects
+            pos = -1
+            type_code = '?'
+
+            if token_obj.value.lower() in parser_reserved_keywords and \
+               parser_reserved_keywords[token_obj.value.lower()] == token_obj.type and \
+               token_obj.value.lower() in keyword_to_pos:
+                type_code = 'k'
+                pos = keyword_to_pos[token_obj.value.lower()]
+            elif token_obj.type in active_delimiter_type_to_symbol:
+                symbol = active_delimiter_type_to_symbol[token_obj.type]
+                if symbol in delimiter_symbol_to_pos:
+                    type_code = 'd'
+                    pos = delimiter_symbol_to_pos[symbol]
+            elif token_obj.type == 'ID':
+                if token_obj.value in identifier_to_pos:
+                    type_code = 'i'
+                    pos = identifier_to_pos[token_obj.value]
+            elif token_obj.type == 'NUMBER' or token_obj.type == 'STRING':
+                str_val = str(token_obj.value)
+                if str_val in constant_to_pos:
+                    type_code = 'c'
+                    pos = constant_to_pos[str_val]
+            
+            if pos != -1:
+                transformed_token_sequence_output.append(f"({pos},{type_code})")
+            else:
+                # Fallback for unmapped tokens
+                transformed_token_sequence_output.append(f"(err:{token_obj.type},{token_obj.value})")
+        
+        final_token_sequence_str = " ".join(transformed_token_sequence_output)
+
         # Step 3: Semantic Analysis - Build symbol table
         analyzer = SemanticAnalyzer()
         analyzer.analyze(ast)
@@ -49,7 +109,7 @@ def compile():
         
         # Format results for display
         return jsonify({
-            'tokens': '\n'.join(tokens),
+            'tokens': final_token_sequence_str,
             'symbolTable': '\n'.join(symbol_table_str) if symbol_table_str else 'No symbols defined',
             'intermediate': '\n'.join(intermediate_str) if intermediate_str else 'No intermediate code generated'
         })
