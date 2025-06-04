@@ -6,9 +6,9 @@ _tabversion = '3.10'
 
 _lr_method = 'LALR'
 
-_lr_signature = 'AND ASSIGN BEGIN BOOLEAN COLON COMMA DIVIDE DO DOT ELSE END EQ GE GT ID IF INTEGER LE LPAREN LT MINUS NUMBER PLUS PROGRAM RPAREN SEMICOLON STRING THEN TIMES VAR WHILE WRITELNprogram : PROGRAM ID SEMICOLON var_declarations BEGIN statements END DOTvar_declarations : VAR var_list\n                        | var_list : var_list var_declaration\n                | var_declarationvar_declaration : id_list COLON type SEMICOLONid_list : id_list COMMA ID\n               | IDtype : INTEGER\n            | BOOLEANstatements : statements statement SEMICOLON\n                  | statement SEMICOLON\n                  | statements statement\n                  | statementstatement : assignment\n                 | if_statement\n                 | while_statement\n                 | writeln_statementassignment : ID ASSIGN expressionif_statement : IF expression THEN BEGIN statements END\n                    | IF expression THEN BEGIN statements END ELSE BEGIN statements ENDwhile_statement : WHILE expression DO BEGIN statements ENDwriteln_statement : WRITELN LPAREN expression RPAREN\n                         | WRITELN LPAREN string_expression_list RPARENstring_expression_list : string_expression_list COMMA string_expression\n                              | string_expressionstring_expression : expression\n                         | STRINGexpression : simple_expression\n                  | simple_expression relop simple_expressionsimple_expression : term\n                         | simple_expression addop termterm : factor\n            | term mulop factorfactor : LPAREN expression RPAREN\n              | NUMBER\n              | IDaddop : PLUS\n             | MINUSmulop : TIMES\n             | DIVIDErelop : LT\n             | GT\n             | EQ\n             | LE\n             | GEexpression : expression AND expression'
+_lr_signature = 'AND ASSIGN BEGIN BOOLEAN COLON COMMA DIVIDE DO DOT ELSE END EQ GE GT ID IF INTEGER LE LPAREN LT MINUS NUMBER PLUS PROGRAM RPAREN SEMICOLON STRING THEN TIMES VAR WHILE WRITELNprogram : PROGRAM ID SEMICOLON var_declarations BEGIN statements END DOTvar_declarations : VAR var_list\n                        | var_list : var_list var_declaration\n                | var_declarationvar_declaration : id_list COLON type SEMICOLONid_list : id_list COMMA ID\n               | IDtype : INTEGER\n            | BOOLEANstatements : statements statement SEMICOLON\n                  | statement SEMICOLON\n                  | statements statement\n                  | statementstatement : assignment\n                 | if_statement\n                 | while_statement\n                 | writeln_statementassignment : ID ASSIGN expressionif_statement : IF expression THEN BEGIN statements END\n                    | IF expression THEN BEGIN statements END ELSE BEGIN statements END\n                    | IF expression THEN statement\n                    | IF expression THEN statement ELSE statementwhile_statement : WHILE expression DO BEGIN statements ENDwriteln_statement : WRITELN LPAREN expression RPAREN\n                         | WRITELN LPAREN string_expression_list RPARENstring_expression_list : string_expression_list COMMA string_expression\n                              | string_expressionstring_expression : expression\n                         | STRINGexpression : simple_expression\n                  | simple_expression relop simple_expressionsimple_expression : term\n                         | simple_expression addop termterm : factor\n            | term mulop factorfactor : LPAREN expression RPAREN\n              | NUMBER\n              | IDaddop : PLUS\n             | MINUSmulop : TIMES\n             | DIVIDErelop : LT\n             | GT\n             | EQ\n             | LE\n             | GEexpression : expression AND expression'
     
-_lr_action_items = {'PROGRAM':([0,],[2,]),'$end':([1,43,],[0,-1,]),'ID':([2,6,7,8,9,13,14,15,16,17,18,19,20,22,24,25,27,28,30,31,32,33,34,35,37,42,44,46,47,48,49,50,51,52,53,54,55,56,57,58,65,66,67,68,69,70,71,72,73,74,75,76,77,80,81,83,84,85,],[3,11,12,11,-5,12,-14,-15,-16,-17,-18,35,35,-4,41,35,-13,-12,-29,-31,-33,35,-36,-37,35,-19,-11,35,35,35,-42,-43,-44,-45,-46,-38,-39,35,-40,-41,-6,12,-47,-30,-32,-34,-35,12,-23,-24,35,12,12,-20,-22,12,12,-21,]),'SEMICOLON':([3,14,15,16,17,18,27,30,31,32,34,35,38,39,40,42,67,68,69,70,71,73,74,80,81,85,],[4,28,-15,-16,-17,-18,44,-29,-31,-33,-36,-37,65,-9,-10,-19,-47,-30,-32,-34,-35,-23,-24,-20,-22,-21,]),'VAR':([4,],[6,]),'BEGIN':([4,5,8,9,22,45,60,65,82,],[-3,7,-2,-5,-4,66,72,-6,83,]),'IF':([7,13,14,15,16,17,18,27,28,30,31,32,34,35,42,44,66,67,68,69,70,71,72,73,74,76,77,80,81,83,84,85,],[19,19,-14,-15,-16,-17,-18,-13,-12,-29,-31,-33,-36,-37,-19,-11,19,-47,-30,-32,-34,-35,19,-23,-24,19,19,-20,-22,19,19,-21,]),'WHILE':([7,13,14,15,16,17,18,27,28,30,31,32,34,35,42,44,66,67,68,69,70,71,72,73,74,76,77,80,81,83,84,85,],[20,20,-14,-15,-16,-17,-18,-13,-12,-29,-31,-33,-36,-37,-19,-11,20,-47,-30,-32,-34,-35,20,-23,-24,20,20,-20,-22,20,20,-21,]),'WRITELN':([7,13,14,15,16,17,18,27,28,30,31,32,34,35,42,44,66,67,68,69,70,71,72,73,74,76,77,80,81,83,84,85,],[21,21,-14,-15,-16,-17,-18,-13,-12,-29,-31,-33,-36,-37,-19,-11,21,-47,-30,-32,-34,-35,21,-23,-24,21,21,-20,-22,21,21,-21,]),'COLON':([10,11,41,],[23,-8,-7,]),'COMMA':([10,11,30,31,32,34,35,41,61,62,63,64,67,68,69,70,71,78,79,],[24,-8,-29,-31,-33,-36,-37,-7,-27,75,-26,-28,-47,-30,-32,-34,-35,-25,-27,]),'ASSIGN':([12,],[25,]),'END':([13,14,15,16,17,18,27,28,30,31,32,34,35,42,44,67,68,69,70,71,73,74,76,77,80,81,84,85,],[26,-14,-15,-16,-17,-18,-13,-12,-29,-31,-33,-36,-37,-19,-11,-47,-30,-32,-34,-35,-23,-24,80,81,-20,-22,85,-21,]),'LPAREN':([19,20,21,25,33,37,46,47,48,49,50,51,52,53,54,55,56,57,58,75,],[33,33,37,33,33,33,33,33,33,-42,-43,-44,-45,-46,-38,-39,33,-40,-41,33,]),'NUMBER':([19,20,25,33,37,46,47,48,49,50,51,52,53,54,55,56,57,58,75,],[34,34,34,34,34,34,34,34,-42,-43,-44,-45,-46,-38,-39,34,-40,-41,34,]),'INTEGER':([23,],[39,]),'BOOLEAN':([23,],[40,]),'DOT':([26,],[43,]),'THEN':([29,30,31,32,34,35,67,68,69,70,71,],[45,-29,-31,-33,-36,-37,-47,-30,-32,-34,-35,]),'AND':([29,30,31,32,34,35,36,42,59,61,67,68,69,70,71,79,],[46,-29,-31,-33,-36,-37,46,46,46,46,46,-30,-32,-34,-35,46,]),'DO':([30,31,32,34,35,36,67,68,69,70,71,],[-29,-31,-33,-36,-37,60,-47,-30,-32,-34,-35,]),'RPAREN':([30,31,32,34,35,59,61,62,63,64,67,68,69,70,71,78,79,],[-29,-31,-33,-36,-37,71,73,74,-26,-28,-47,-30,-32,-34,-35,-25,-27,]),'LT':([30,31,32,34,35,69,70,71,],[49,-31,-33,-36,-37,-32,-34,-35,]),'GT':([30,31,32,34,35,69,70,71,],[50,-31,-33,-36,-37,-32,-34,-35,]),'EQ':([30,31,32,34,35,69,70,71,],[51,-31,-33,-36,-37,-32,-34,-35,]),'LE':([30,31,32,34,35,69,70,71,],[52,-31,-33,-36,-37,-32,-34,-35,]),'GE':([30,31,32,34,35,69,70,71,],[53,-31,-33,-36,-37,-32,-34,-35,]),'PLUS':([30,31,32,34,35,68,69,70,71,],[54,-31,-33,-36,-37,54,-32,-34,-35,]),'MINUS':([30,31,32,34,35,68,69,70,71,],[55,-31,-33,-36,-37,55,-32,-34,-35,]),'TIMES':([31,32,34,35,69,70,71,],[57,-33,-36,-37,57,-34,-35,]),'DIVIDE':([31,32,34,35,69,70,71,],[58,-33,-36,-37,58,-34,-35,]),'STRING':([37,75,],[64,64,]),'ELSE':([80,],[82,]),}
+_lr_action_items = {'PROGRAM':([0,],[2,]),'$end':([1,43,],[0,-1,]),'ID':([2,6,7,8,9,13,14,15,16,17,18,19,20,22,24,25,27,28,30,31,32,33,34,35,37,42,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,82,83,84,86,87,88,],[3,11,12,11,-5,12,-14,-15,-16,-17,-18,35,35,-4,41,35,-13,-12,-31,-33,-35,35,-38,-39,35,-19,-11,12,35,35,35,-44,-45,-46,-47,-48,-40,-41,35,-42,-43,-6,12,-22,-49,-32,-34,-36,-37,12,-25,-26,35,12,12,12,-20,-23,-24,12,12,-21,]),'SEMICOLON':([3,14,15,16,17,18,27,30,31,32,34,35,38,39,40,42,67,68,69,70,71,72,74,75,82,83,84,88,],[4,28,-15,-16,-17,-18,44,-31,-33,-35,-38,-39,65,-9,-10,-19,-22,-49,-32,-34,-36,-37,-25,-26,-20,-23,-24,-21,]),'VAR':([4,],[6,]),'BEGIN':([4,5,8,9,22,45,60,65,85,],[-3,7,-2,-5,-4,66,73,-6,86,]),'IF':([7,13,14,15,16,17,18,27,28,30,31,32,34,35,42,44,45,66,67,68,69,70,71,72,73,74,75,77,78,79,82,83,84,86,87,88,],[19,19,-14,-15,-16,-17,-18,-13,-12,-31,-33,-35,-38,-39,-19,-11,19,19,-22,-49,-32,-34,-36,-37,19,-25,-26,19,19,19,-20,-23,-24,19,19,-21,]),'WHILE':([7,13,14,15,16,17,18,27,28,30,31,32,34,35,42,44,45,66,67,68,69,70,71,72,73,74,75,77,78,79,82,83,84,86,87,88,],[20,20,-14,-15,-16,-17,-18,-13,-12,-31,-33,-35,-38,-39,-19,-11,20,20,-22,-49,-32,-34,-36,-37,20,-25,-26,20,20,20,-20,-23,-24,20,20,-21,]),'WRITELN':([7,13,14,15,16,17,18,27,28,30,31,32,34,35,42,44,45,66,67,68,69,70,71,72,73,74,75,77,78,79,82,83,84,86,87,88,],[21,21,-14,-15,-16,-17,-18,-13,-12,-31,-33,-35,-38,-39,-19,-11,21,21,-22,-49,-32,-34,-36,-37,21,-25,-26,21,21,21,-20,-23,-24,21,21,-21,]),'COLON':([10,11,41,],[23,-8,-7,]),'COMMA':([10,11,30,31,32,34,35,41,61,62,63,64,68,69,70,71,72,80,81,],[24,-8,-31,-33,-35,-38,-39,-7,-29,76,-28,-30,-49,-32,-34,-36,-37,-27,-29,]),'ASSIGN':([12,],[25,]),'END':([13,14,15,16,17,18,27,28,30,31,32,34,35,42,44,67,68,69,70,71,72,74,75,77,79,82,83,84,87,88,],[26,-14,-15,-16,-17,-18,-13,-12,-31,-33,-35,-38,-39,-19,-11,-22,-49,-32,-34,-36,-37,-25,-26,82,84,-20,-23,-24,88,-21,]),'ELSE':([15,16,17,18,30,31,32,34,35,42,67,68,69,70,71,72,74,75,82,83,84,88,],[-15,-16,-17,-18,-31,-33,-35,-38,-39,-19,78,-49,-32,-34,-36,-37,-25,-26,85,-23,-24,-21,]),'LPAREN':([19,20,21,25,33,37,46,47,48,49,50,51,52,53,54,55,56,57,58,76,],[33,33,37,33,33,33,33,33,33,-44,-45,-46,-47,-48,-40,-41,33,-42,-43,33,]),'NUMBER':([19,20,25,33,37,46,47,48,49,50,51,52,53,54,55,56,57,58,76,],[34,34,34,34,34,34,34,34,-44,-45,-46,-47,-48,-40,-41,34,-42,-43,34,]),'INTEGER':([23,],[39,]),'BOOLEAN':([23,],[40,]),'DOT':([26,],[43,]),'THEN':([29,30,31,32,34,35,68,69,70,71,72,],[45,-31,-33,-35,-38,-39,-49,-32,-34,-36,-37,]),'AND':([29,30,31,32,34,35,36,42,59,61,68,69,70,71,72,81,],[46,-31,-33,-35,-38,-39,46,46,46,46,46,-32,-34,-36,-37,46,]),'DO':([30,31,32,34,35,36,68,69,70,71,72,],[-31,-33,-35,-38,-39,60,-49,-32,-34,-36,-37,]),'RPAREN':([30,31,32,34,35,59,61,62,63,64,68,69,70,71,72,80,81,],[-31,-33,-35,-38,-39,72,74,75,-28,-30,-49,-32,-34,-36,-37,-27,-29,]),'LT':([30,31,32,34,35,70,71,72,],[49,-33,-35,-38,-39,-34,-36,-37,]),'GT':([30,31,32,34,35,70,71,72,],[50,-33,-35,-38,-39,-34,-36,-37,]),'EQ':([30,31,32,34,35,70,71,72,],[51,-33,-35,-38,-39,-34,-36,-37,]),'LE':([30,31,32,34,35,70,71,72,],[52,-33,-35,-38,-39,-34,-36,-37,]),'GE':([30,31,32,34,35,70,71,72,],[53,-33,-35,-38,-39,-34,-36,-37,]),'PLUS':([30,31,32,34,35,69,70,71,72,],[54,-33,-35,-38,-39,54,-34,-36,-37,]),'MINUS':([30,31,32,34,35,69,70,71,72,],[55,-33,-35,-38,-39,55,-34,-36,-37,]),'TIMES':([31,32,34,35,70,71,72,],[57,-35,-38,-39,57,-36,-37,]),'DIVIDE':([31,32,34,35,70,71,72,],[58,-35,-38,-39,58,-36,-37,]),'STRING':([37,76,],[64,64,]),}
 
 _lr_action = {}
 for _k, _v in _lr_action_items.items():
@@ -17,7 +17,7 @@ for _k, _v in _lr_action_items.items():
       _lr_action[_x][_k] = _y
 del _lr_action_items
 
-_lr_goto_items = {'program':([0,],[1,]),'var_declarations':([4,],[5,]),'var_list':([6,],[8,]),'var_declaration':([6,8,],[9,22,]),'id_list':([6,8,],[10,10,]),'statements':([7,66,72,83,],[13,76,77,84,]),'statement':([7,13,66,72,76,77,83,84,],[14,27,14,14,27,27,14,27,]),'assignment':([7,13,66,72,76,77,83,84,],[15,15,15,15,15,15,15,15,]),'if_statement':([7,13,66,72,76,77,83,84,],[16,16,16,16,16,16,16,16,]),'while_statement':([7,13,66,72,76,77,83,84,],[17,17,17,17,17,17,17,17,]),'writeln_statement':([7,13,66,72,76,77,83,84,],[18,18,18,18,18,18,18,18,]),'expression':([19,20,25,33,37,46,75,],[29,36,42,59,61,67,79,]),'simple_expression':([19,20,25,33,37,46,47,75,],[30,30,30,30,30,30,68,30,]),'term':([19,20,25,33,37,46,47,48,75,],[31,31,31,31,31,31,31,69,31,]),'factor':([19,20,25,33,37,46,47,48,56,75,],[32,32,32,32,32,32,32,32,70,32,]),'type':([23,],[38,]),'relop':([30,],[47,]),'addop':([30,68,],[48,48,]),'mulop':([31,69,],[56,56,]),'string_expression_list':([37,],[62,]),'string_expression':([37,75,],[63,78,]),}
+_lr_goto_items = {'program':([0,],[1,]),'var_declarations':([4,],[5,]),'var_list':([6,],[8,]),'var_declaration':([6,8,],[9,22,]),'id_list':([6,8,],[10,10,]),'statements':([7,66,73,86,],[13,77,79,87,]),'statement':([7,13,45,66,73,77,78,79,86,87,],[14,27,67,14,14,27,83,27,14,27,]),'assignment':([7,13,45,66,73,77,78,79,86,87,],[15,15,15,15,15,15,15,15,15,15,]),'if_statement':([7,13,45,66,73,77,78,79,86,87,],[16,16,16,16,16,16,16,16,16,16,]),'while_statement':([7,13,45,66,73,77,78,79,86,87,],[17,17,17,17,17,17,17,17,17,17,]),'writeln_statement':([7,13,45,66,73,77,78,79,86,87,],[18,18,18,18,18,18,18,18,18,18,]),'expression':([19,20,25,33,37,46,76,],[29,36,42,59,61,68,81,]),'simple_expression':([19,20,25,33,37,46,47,76,],[30,30,30,30,30,30,69,30,]),'term':([19,20,25,33,37,46,47,48,76,],[31,31,31,31,31,31,31,70,31,]),'factor':([19,20,25,33,37,46,47,48,56,76,],[32,32,32,32,32,32,32,32,71,32,]),'type':([23,],[38,]),'relop':([30,],[47,]),'addop':([30,69,],[48,48,]),'mulop':([31,70,],[56,56,]),'string_expression_list':([37,],[62,]),'string_expression':([37,76,],[63,80,]),}
 
 _lr_goto = {}
 for _k, _v in _lr_goto_items.items():
@@ -27,51 +27,53 @@ for _k, _v in _lr_goto_items.items():
 del _lr_goto_items
 _lr_productions = [
   ("S' -> program","S'",1,None,None,None),
-  ('program -> PROGRAM ID SEMICOLON var_declarations BEGIN statements END DOT','program',8,'p_program','parser.py',98),
-  ('var_declarations -> VAR var_list','var_declarations',2,'p_var_declarations','parser.py',102),
-  ('var_declarations -> <empty>','var_declarations',0,'p_var_declarations','parser.py',103),
-  ('var_list -> var_list var_declaration','var_list',2,'p_var_list','parser.py',110),
-  ('var_list -> var_declaration','var_list',1,'p_var_list','parser.py',111),
-  ('var_declaration -> id_list COLON type SEMICOLON','var_declaration',4,'p_var_declaration','parser.py',118),
-  ('id_list -> id_list COMMA ID','id_list',3,'p_id_list','parser.py',122),
-  ('id_list -> ID','id_list',1,'p_id_list','parser.py',123),
-  ('type -> INTEGER','type',1,'p_type','parser.py',130),
-  ('type -> BOOLEAN','type',1,'p_type','parser.py',131),
-  ('statements -> statements statement SEMICOLON','statements',3,'p_statements','parser.py',135),
-  ('statements -> statement SEMICOLON','statements',2,'p_statements','parser.py',136),
-  ('statements -> statements statement','statements',2,'p_statements','parser.py',137),
-  ('statements -> statement','statements',1,'p_statements','parser.py',138),
-  ('statement -> assignment','statement',1,'p_statement','parser.py',148),
-  ('statement -> if_statement','statement',1,'p_statement','parser.py',149),
-  ('statement -> while_statement','statement',1,'p_statement','parser.py',150),
-  ('statement -> writeln_statement','statement',1,'p_statement','parser.py',151),
-  ('assignment -> ID ASSIGN expression','assignment',3,'p_assignment','parser.py',155),
-  ('if_statement -> IF expression THEN BEGIN statements END','if_statement',6,'p_if_statement','parser.py',159),
-  ('if_statement -> IF expression THEN BEGIN statements END ELSE BEGIN statements END','if_statement',10,'p_if_statement','parser.py',160),
-  ('while_statement -> WHILE expression DO BEGIN statements END','while_statement',6,'p_while_statement','parser.py',167),
-  ('writeln_statement -> WRITELN LPAREN expression RPAREN','writeln_statement',4,'p_writeln_statement','parser.py',171),
-  ('writeln_statement -> WRITELN LPAREN string_expression_list RPAREN','writeln_statement',4,'p_writeln_statement','parser.py',172),
-  ('string_expression_list -> string_expression_list COMMA string_expression','string_expression_list',3,'p_string_expression_list','parser.py',179),
-  ('string_expression_list -> string_expression','string_expression_list',1,'p_string_expression_list','parser.py',180),
-  ('string_expression -> expression','string_expression',1,'p_string_expression','parser.py',187),
-  ('string_expression -> STRING','string_expression',1,'p_string_expression','parser.py',188),
-  ('expression -> simple_expression','expression',1,'p_expression','parser.py',192),
-  ('expression -> simple_expression relop simple_expression','expression',3,'p_expression','parser.py',193),
-  ('simple_expression -> term','simple_expression',1,'p_simple_expression','parser.py',200),
-  ('simple_expression -> simple_expression addop term','simple_expression',3,'p_simple_expression','parser.py',201),
-  ('term -> factor','term',1,'p_term','parser.py',208),
-  ('term -> term mulop factor','term',3,'p_term','parser.py',209),
-  ('factor -> LPAREN expression RPAREN','factor',3,'p_factor','parser.py',216),
-  ('factor -> NUMBER','factor',1,'p_factor','parser.py',217),
-  ('factor -> ID','factor',1,'p_factor','parser.py',218),
-  ('addop -> PLUS','addop',1,'p_addop','parser.py',225),
-  ('addop -> MINUS','addop',1,'p_addop','parser.py',226),
-  ('mulop -> TIMES','mulop',1,'p_mulop','parser.py',230),
-  ('mulop -> DIVIDE','mulop',1,'p_mulop','parser.py',231),
-  ('relop -> LT','relop',1,'p_relop','parser.py',235),
-  ('relop -> GT','relop',1,'p_relop','parser.py',236),
-  ('relop -> EQ','relop',1,'p_relop','parser.py',237),
-  ('relop -> LE','relop',1,'p_relop','parser.py',238),
-  ('relop -> GE','relop',1,'p_relop','parser.py',239),
-  ('expression -> expression AND expression','expression',3,'p_expression_logical','parser.py',243),
+  ('program -> PROGRAM ID SEMICOLON var_declarations BEGIN statements END DOT','program',8,'p_program','parser.py',104),
+  ('var_declarations -> VAR var_list','var_declarations',2,'p_var_declarations','parser.py',108),
+  ('var_declarations -> <empty>','var_declarations',0,'p_var_declarations','parser.py',109),
+  ('var_list -> var_list var_declaration','var_list',2,'p_var_list','parser.py',116),
+  ('var_list -> var_declaration','var_list',1,'p_var_list','parser.py',117),
+  ('var_declaration -> id_list COLON type SEMICOLON','var_declaration',4,'p_var_declaration','parser.py',124),
+  ('id_list -> id_list COMMA ID','id_list',3,'p_id_list','parser.py',128),
+  ('id_list -> ID','id_list',1,'p_id_list','parser.py',129),
+  ('type -> INTEGER','type',1,'p_type','parser.py',136),
+  ('type -> BOOLEAN','type',1,'p_type','parser.py',137),
+  ('statements -> statements statement SEMICOLON','statements',3,'p_statements','parser.py',141),
+  ('statements -> statement SEMICOLON','statements',2,'p_statements','parser.py',142),
+  ('statements -> statements statement','statements',2,'p_statements','parser.py',143),
+  ('statements -> statement','statements',1,'p_statements','parser.py',144),
+  ('statement -> assignment','statement',1,'p_statement','parser.py',154),
+  ('statement -> if_statement','statement',1,'p_statement','parser.py',155),
+  ('statement -> while_statement','statement',1,'p_statement','parser.py',156),
+  ('statement -> writeln_statement','statement',1,'p_statement','parser.py',157),
+  ('assignment -> ID ASSIGN expression','assignment',3,'p_assignment','parser.py',161),
+  ('if_statement -> IF expression THEN BEGIN statements END','if_statement',6,'p_if_statement','parser.py',165),
+  ('if_statement -> IF expression THEN BEGIN statements END ELSE BEGIN statements END','if_statement',10,'p_if_statement','parser.py',166),
+  ('if_statement -> IF expression THEN statement','if_statement',4,'p_if_statement','parser.py',167),
+  ('if_statement -> IF expression THEN statement ELSE statement','if_statement',6,'p_if_statement','parser.py',168),
+  ('while_statement -> WHILE expression DO BEGIN statements END','while_statement',6,'p_while_statement','parser.py',179),
+  ('writeln_statement -> WRITELN LPAREN expression RPAREN','writeln_statement',4,'p_writeln_statement','parser.py',183),
+  ('writeln_statement -> WRITELN LPAREN string_expression_list RPAREN','writeln_statement',4,'p_writeln_statement','parser.py',184),
+  ('string_expression_list -> string_expression_list COMMA string_expression','string_expression_list',3,'p_string_expression_list','parser.py',191),
+  ('string_expression_list -> string_expression','string_expression_list',1,'p_string_expression_list','parser.py',192),
+  ('string_expression -> expression','string_expression',1,'p_string_expression','parser.py',199),
+  ('string_expression -> STRING','string_expression',1,'p_string_expression','parser.py',200),
+  ('expression -> simple_expression','expression',1,'p_expression','parser.py',204),
+  ('expression -> simple_expression relop simple_expression','expression',3,'p_expression','parser.py',205),
+  ('simple_expression -> term','simple_expression',1,'p_simple_expression','parser.py',212),
+  ('simple_expression -> simple_expression addop term','simple_expression',3,'p_simple_expression','parser.py',213),
+  ('term -> factor','term',1,'p_term','parser.py',220),
+  ('term -> term mulop factor','term',3,'p_term','parser.py',221),
+  ('factor -> LPAREN expression RPAREN','factor',3,'p_factor','parser.py',228),
+  ('factor -> NUMBER','factor',1,'p_factor','parser.py',229),
+  ('factor -> ID','factor',1,'p_factor','parser.py',230),
+  ('addop -> PLUS','addop',1,'p_addop','parser.py',237),
+  ('addop -> MINUS','addop',1,'p_addop','parser.py',238),
+  ('mulop -> TIMES','mulop',1,'p_mulop','parser.py',242),
+  ('mulop -> DIVIDE','mulop',1,'p_mulop','parser.py',243),
+  ('relop -> LT','relop',1,'p_relop','parser.py',247),
+  ('relop -> GT','relop',1,'p_relop','parser.py',248),
+  ('relop -> EQ','relop',1,'p_relop','parser.py',249),
+  ('relop -> LE','relop',1,'p_relop','parser.py',250),
+  ('relop -> GE','relop',1,'p_relop','parser.py',251),
+  ('expression -> expression AND expression','expression',3,'p_expression_logical','parser.py',255),
 ]

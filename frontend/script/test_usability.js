@@ -8,7 +8,7 @@ new Vue({
     methods: {
         compile() {
             if (!this.expression.trim()) {
-                alert('Please enter an expression');
+                alert('Please enter a Pascal program');
                 return;
             }
             fetch('http://localhost:5000/compile', {
@@ -16,11 +16,13 @@ new Vue({
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ expression: this.expression })
+                body: JSON.stringify({ program: this.expression })
             })
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                    return response.text().then(text => {
+                        throw new Error(`Network response was not ok: ${response.status} - ${text}`);
+                    });
                 }
                 return response.json();
             })
@@ -29,7 +31,7 @@ new Vue({
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Failed to compile expression. Please check the console for details.');
+                alert('Failed to compile program. Please check the console for details.');
             });
         },
         runTests() {
@@ -37,12 +39,13 @@ new Vue({
             this.testInputField();
             this.testCompileButton();
             this.testResultsDisplay();
+            this.testComplexProgramCompilation();
         },
         logTest(message, status) {
             this.testLogs.push({ message, status });
         },
         testInputField() {
-            const testExpression = '1 + 2 * 3';
+            const testExpression = 'program Test; var x: integer; begin x := 5; end.';
             this.expression = testExpression;
             if (this.expression === testExpression) {
                 this.logTest('Test 1: Input field accepts text - PASS', 'PASS');
@@ -62,10 +65,9 @@ new Vue({
         testResultsDisplay() {
             // Simulate a successful response to check if results are displayed
             const mockResults = {
-                ast: 'Mock AST',
-                intermediate: 'Mock Intermediate Code',
-                optimized: 'Mock Optimized Code',
-                target: 'Mock Target Code'
+                tokens: 'Mock Token Sequence',
+                symbolTable: 'Mock Symbol Table',
+                intermediate: 'Mock Intermediate Code'
             };
             this.results = mockResults;
             if (this.results === mockResults) {
@@ -73,6 +75,52 @@ new Vue({
             } else {
                 this.logTest('Test 3: Results display area shows data - FAIL', 'FAIL');
             }
+        },
+        testComplexProgramCompilation() {
+            const complexProgram = `program ComplexExample;
+    var
+      counter: integer;
+      total: integer;
+      isPositive: boolean;
+    begin
+      counter := 10;
+      total := 5 + 3;
+      isPositive := counter > 0;
+      while counter > 0 do
+      begin
+        total := total + counter;
+        counter := counter - 1;
+      end;
+      if isPositive then
+        total := total + 1
+      else
+        total := 0;
+    end.`;
+            this.expression = complexProgram;
+            fetch('http://localhost:5000/compile', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ program: complexProgram })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        this.logTest(`Test 4: Complex program compilation - FAIL: ${text}`, 'FAIL');
+                        throw new Error(`Network response was not ok: ${response.status} - ${text}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                this.results = data;
+                this.logTest('Test 4: Complex program compilation - PASS (Unexpected success, parser may have been updated)', 'PASS');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.logTest(`Test 4: Complex program compilation - FAIL: ${error.message}`, 'FAIL');
+            });
         }
     }
 });
