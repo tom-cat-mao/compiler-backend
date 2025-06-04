@@ -45,7 +45,7 @@ t_TIMES = r'\*'
 t_DIVIDE = r'/'
 t_LPAREN = r'\('
 t_RPAREN = r'\)'
-t_NUMBER = r'\d+'
+# t_NUMBER = r'\d+' # Replaced by function below
 t_SEMICOLON = r';'
 t_COLON = r':'
 t_COMMA = r','
@@ -79,6 +79,11 @@ def t_ID(t):
     r'[a-zA-Z][a-zA-Z0-9]*'
     t.type = reserved.get(t.value.lower(), 'ID')  # Check if it's a reserved keyword
     # print(f"Token: ID, Value: {t.value}, Line: {t.lineno}, Position: {t.lexpos}")
+    return t
+
+def t_NUMBER(t):
+    r'\d+'
+    t.value = int(t.value)
     return t
 
 t_ignore = ' \t'
@@ -143,11 +148,12 @@ def p_statements(p):
                   | statements statement
                   | statement'''
     if len(p) > 2:
-        if isinstance(p[1], list):
-            p[0] = p[1] + [p[2]]
-        else:
-            p[0] = [p[1], p[2]]
-    else:
+        if isinstance(p[1], list): # True for 'statements statement SEMICOLON' and 'statements statement'
+            p[0] = p[1] + [p[2]]   # p[2] is the statement node
+        else: # True for 'statement SEMICOLON'
+              # p[1] is statement node, p[2] is SEMICOLON token value
+            p[0] = [p[1]] # Only take the statement node, not the semicolon
+    else: # True for 'statement'
         p[0] = [p[1]]
 
 def p_statement(p):
@@ -228,10 +234,10 @@ def p_factor(p):
     '''factor : LPAREN expression RPAREN
               | NUMBER
               | ID'''
-    if len(p) > 2:
+    if p[1] == '(': # Matched LPAREN expression RPAREN
         p[0] = p[2]
-    else:
-        p[0] = p[1] if isinstance(p[1], int) else p[1]
+    else: # Matched NUMBER or ID
+        p[0] = p[1] # Value is already int for NUMBER (from t_NUMBER) or str for ID
 
 def p_addop(p):
     '''addop : PLUS
