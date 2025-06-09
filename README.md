@@ -64,6 +64,26 @@ end.
 - **Optimization**: Applies constant folding to evaluate constant expressions at compile time. In this program, `5 + 3` is optimized to `8`, so the intermediate code for `total := 5 + 3` becomes `(:=, 8, , total)`, reducing runtime computation.
 - **Target Code Generation**: Transforms the optimized intermediate code into assembly-like instructions. For instance, `total := 8` becomes `MOV 8, total`; operations within the loop like `total := total + counter` translate to `LOAD total`, `ADD counter`, `STORE total`. Control flow and output statements are similarly mapped to low-level instructions like conditional jumps and write operations.
 
+## Frontend
+
+A web-based frontend has been developed for interacting with the compiler backend, allowing users to input arithmetic expressions and view the compilation results through a user-friendly interface.
+
+### Frontend Structure
+- **Directory**: `frontend/`
+- **Main File**: `frontend/static/index.html` - The primary interface for user interaction with the compiler.
+- **Test File**: `frontend/static/test_usability.html` - A test interface for evaluating frontend usability.
+
+### Frontend Content
+- **Input Field**: Allows users to enter arithmetic expressions (e.g., `1 + 2 * 3`).
+- **Compile Button**: Triggers the compilation process by sending the input expression to the backend API.
+- **Results Display**: Shows the compilation results in four sections:
+  - **Abstract Syntax Tree (AST)**: The parsed structure of the expression.
+  - **Intermediate Code**: The three-address code representation.
+  - **Optimized Code**: The intermediate code after optimizations like constant folding.
+  - **Target Code**: The final assembly-like code.
+
+The frontend is built using Vue.js, included via a CDN for simplicity, avoiding complex build tools and ensuring a lightweight setup.
+
 ## Setup and Running the Project
 
 ### Python Virtual Environment Setup
@@ -95,6 +115,8 @@ end.
    python src/api.py
    ```
    - The server runs on port 5000 by default. Ensure this port is free or adjust if necessary.
+
+   Open the frontend/static/index.html in browser
 6. **Run Tests**: Execute the test suite to verify functionality. Ensure the `src` directory is in the PYTHONPATH to resolve module imports. Make sure dependencies are installed in the venv before running tests.
    ```bash
    PYTHONPATH=$PYTHONPATH:./src python -m pytest tests/ -v
@@ -105,26 +127,6 @@ end.
    deactivate
    ```
 
-## Frontend
-
-A web-based frontend has been developed for interacting with the compiler backend, allowing users to input arithmetic expressions and view the compilation results through a user-friendly interface.
-
-### Frontend Structure
-- **Directory**: `frontend/`
-- **Main File**: `frontend/static/index.html` - The primary interface for user interaction with the compiler.
-- **Test File**: `frontend/static/test_usability.html` - A test interface for evaluating frontend usability.
-
-### Frontend Content
-- **Input Field**: Allows users to enter arithmetic expressions (e.g., `1 + 2 * 3`).
-- **Compile Button**: Triggers the compilation process by sending the input expression to the backend API.
-- **Results Display**: Shows the compilation results in four sections:
-  - **Abstract Syntax Tree (AST)**: The parsed structure of the expression.
-  - **Intermediate Code**: The three-address code representation.
-  - **Optimized Code**: The intermediate code after optimizations like constant folding.
-  - **Target Code**: The final assembly-like code.
-
-The frontend is built using Vue.js, included via a CDN for simplicity, avoiding complex build tools and ensuring a lightweight setup.
-
 ### Pascal Compiler Limitations
 **Note**: The current implementation of the Pascal compiler frontend has specific limitations in the parser that may cause "Invalid program syntax" errors for certain Pascal constructs. These limitations include:
 - **Comments**: The parser does not support "//" style comments. Use (* *) style comments if needed, or avoid comments in test programs.
@@ -132,23 +134,7 @@ The frontend is built using Vue.js, included via a CDN for simplicity, avoiding 
 - **Formatted Output**: Format specifiers in writeln statements (e.g., "average:0:2") are not supported. Simplify output statements to avoid format specifiers.
 - **Complex Writeln Statements**: The parser has limited support for writeln statements with multiple arguments or string concatenation. Use single expressions or basic string literals where possible.
 
-For testing purposes, ensure your Pascal programs adhere to these constraints. A simple valid test program could be:
-```
-program Test;
-var x: integer;
-begin
-  x := 5;
-end.
-```
 We are working on extending the parser to support a broader range of Pascal syntax in future updates.
-
-### Starting the Frontend and Backend
-- **Frontend**: Open `frontend/static/index.html` directly in a web browser to access the compiler interface. No additional setup or server is required for the frontend.
-- **Backend API**: The backend must be running to process compilation requests. Start the API server with:
-  ```bash
-  python src/api.py
-  ```
-  Ensure the backend API is running on port 5000 before using the frontend to compile expressions.
 
 ## Development
 
