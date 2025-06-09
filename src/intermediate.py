@@ -162,26 +162,44 @@ class IntermediateCodeGenerator:
 
     def generate_expression(self, expr):
         """Generate code for an expression and return the result (temp variable or value)."""
-        if isinstance(expr, int) or isinstance(expr, bool): # Constants
+        if isinstance(expr, (int, float, bool)): # Direct constants (added float)
             return expr
         elif isinstance(expr, str):
-            # Could be an identifier (variable name) or a string literal.
-            # If it's a variable, its value is used directly.
-            # If it's a string literal (e.g. from writeln), it's also used directly.
+            # This might be a direct string literal if not wrapped by parser, or a temp var name.
             return expr
         elif isinstance(expr, tuple):
-            # Binary/Unary operations: (operator, operand1, operand2) or (operator, operand1)
-            op = expr[0]
-            
-            # For binary operations like +, -, *, /, <, >, =, <=, >=, and
-            if op in ('+', '-', '*', '/', '<', '>', '=', '<=', '>=', 'and', 'or'): # Added 'or' for completeness
+            node_type = expr[0]
+
+            # Handle specific AST node types for literals and identifiers
+            if node_type == 'NUMBER':       # e.g., ('NUMBER', 10)
+                return expr[1]
+            elif node_type == 'REAL_NUMBER': # e.g., ('REAL_NUMBER', 3.14)
+                return expr[1]
+            elif node_type == 'CHAR_LITERAL': # e.g., ('CHAR_LITERAL', 'a')
+                return expr[1]
+            elif node_type == 'STRING_LITERAL': # e.g., ('STRING_LITERAL', "hello")
+                return expr[1]
+            elif node_type == 'BOOLEAN_LITERAL': # e.g., ('BOOLEAN_LITERAL', True)
+                return expr[1]
+            elif node_type == 'ID':           # e.g., ('ID', 'varname')
+                return expr[1] # The identifier name itself is the "value" here for quad generation
+
+            # For binary operations like +, -, *, /, <, >, =, <=, >=, and, or
+            elif node_type in ('+', '-', '*', '/', '<', '>', '=', '<=', '>=', 'and', 'or'):
                 if len(expr) == 3: # Binary operation
                     left_val = self.generate_expression(expr[1])
                     right_val = self.generate_expression(expr[2])
                     temp_result = self.new_temp()
-                    self.code.append((op, left_val, right_val, temp_result))
+                    self.code.append((node_type, left_val, right_val, temp_result))
                     return temp_result
-            # Potentially handle unary minus or NOT if your AST supports it
+            # Handle unary 'not' if your AST supports it
+            elif node_type == 'not': # Example for unary not
+                if len(expr) == 2: # Unary operation
+                    operand_val = self.generate_expression(expr[1])
+                    temp_result = self.new_temp()
+                    self.code.append((node_type, operand_val, '_', temp_result)) # Or specific format
+                    return temp_result
+            # Potentially handle unary minus if your AST supports it
             # elif op == 'uminus' and len(expr) == 2:
             #     operand_val = self.generate_expression(expr[1])
             #     temp_result = self.new_temp()

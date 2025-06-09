@@ -53,7 +53,7 @@ def print_transformed_token_sequence(
                 type_code = 'i'
                 pos = identifier_to_pos_map[token.value]
         # Check for Constant (Number or String)
-        elif token.type == 'NUMBER' or token.type == 'STRING':
+        elif token.type == 'NUMBER' or token.type == 'STRING' or token.type == 'REAL_NUMBER':
             str_val = str(token.value) # Ensure value is string for map lookup
             if str_val in constant_to_pos_map:
                 type_code = 'c'
@@ -147,7 +147,7 @@ def print_identifier_table(tokens_list):
 
 def print_constant_table(tokens_list):
     """Print the constant table from a list of tokens in a table-like format."""
-    constants = sorted(list(set(str(token.value) for token in tokens_list if token.type == 'NUMBER' or token.type == 'STRING')))
+    constants = sorted(list(set(str(token.value) for token in tokens_list if token.type == 'NUMBER' or token.type == 'STRING' or token.type == 'REAL_NUMBER')))
             
     print("Constant Table (c):")
     print("-------------------")
@@ -195,7 +195,7 @@ def main(file_path):
     identifier_to_pos = {ident: i + 1 for i, ident in enumerate(unique_identifiers_list)}
 
     # Constant map: constant string value -> pos
-    unique_constants_list = sorted(list(set(str(t.value) for t in collected_tokens if t.type == 'NUMBER' or t.type == 'STRING')))
+    unique_constants_list = sorted(list(set(str(t.value) for t in collected_tokens if t.type == 'NUMBER' or t.type == 'STRING' or t.type == 'REAL_NUMBER')))
     constant_to_pos = {const_val: i + 1 for i, const_val in enumerate(unique_constants_list)}
     
     # --- Print all tables ---
