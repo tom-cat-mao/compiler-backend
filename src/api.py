@@ -13,6 +13,88 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 app = Flask(__name__)
 CORS(app, resources={r"/compile": {"origins": "*"}}, supports_credentials=True)
 
+def format_synbl(synbl, analyzer_instance):
+    lines = []
+    if not synbl:
+        lines.append("SYNBL is empty.")
+        return "\n".join(lines)
+    header = f"{'Idx':<3} | {'Name':<15} | {'Cat':<5} | {'Addr/Info':<20}"
+    lines.append(header)
+    lines.append("-" * len(header))
+    for i, entry in enumerate(synbl):
+        addr_info_str = str(entry.get('ADDR_PTR'))
+        cat = entry.get('CAT')
+        addr_ptr = entry.get('ADDR_PTR')
+        if cat == 'f' and isinstance(addr_ptr, int):
+            addr_info_str = f"PFINFL_IDX:{addr_ptr}"
+        elif cat == 'c' and isinstance(addr_ptr, int):
+            addr_info_str = f"CONSL_IDX:{addr_ptr}"
+        elif cat in ['v', 'p_val', 'p_ref']:
+            addr_info_str = str(addr_ptr if addr_ptr is not None else "N/A")
+        elif cat == 'program_name' or cat == 't':
+            addr_info_str = "N/A"
+        lines.append(f"{i:<3} | {str(entry.get('NAME')):<15} | {str(cat):<5} | {addr_info_str:<20}")
+    return "\n".join(lines)
+
+def format_typel(typel):
+    lines = []
+    if not typel:
+        lines.append("TYPEL is empty.")
+        return "\n".join(lines)
+    header = f"{'Idx':<3} | {'Kind':<10} | {'Details':<30}"
+    lines.append(header)
+    lines.append("-" * len(header))
+    for i, entry in enumerate(typel):
+        details_str = ""
+        if entry.get('KIND') == 'basic':
+            details_str = f"Name: {entry.get('NAME')}"
+        elif entry.get('KIND') == 'array':
+            details_str = f"AINFL_PTR: {entry.get('AINFL_PTR')}"
+        lines.append(f"{i:<3} | {str(entry.get('KIND')):<10} | {details_str:<30}")
+    return "\n".join(lines)
+
+def format_pfinfl(pfinfl, analyzer_instance):
+    lines = []
+    if not pfinfl:
+        lines.append("PFINFL is empty.")
+        return "\n".join(lines)
+    header = f"{'Idx':<3} | {'Level':<5} | {'Params':<6} | {'Return Type':<15} | {'Entry Label':<20} | {'Param SYNBL Idxs':<20}"
+    lines.append(header)
+    lines.append("-" * len(header))
+    for i, entry in enumerate(pfinfl):
+        ret_type_name = "PROCEDURE"
+        if entry.get('RETURN_TYPE_PTR', -1) != -1:
+             ret_type_name = analyzer_instance.get_type_name_from_ptr(entry.get('RETURN_TYPE_PTR'))
+        param_idxs_str = ", ".join(map(str, entry.get('PARAM_SYNBL_INDICES', [])))
+        lines.append(f"{i:<3} | {str(entry.get('LEVEL')):<5} | {str(entry.get('PARAM_COUNT')):<6} | {ret_type_name:<15} | {str(entry.get('ENTRY_LABEL')):<20} | {param_idxs_str:<20}")
+    return "\n".join(lines)
+
+def format_ainfl(ainfl, analyzer_instance):
+    lines = []
+    if not ainfl:
+        lines.append("AINFL is empty.")
+        return "\n".join(lines)
+    header = f"{'Idx':<3} | {'Element Type':<20} | {'LowerB':<6} | {'UpperB':<6} | {'Size':<5}"
+    lines.append(header)
+    lines.append("-" * len(header))
+    for i, entry in enumerate(ainfl):
+        el_type_name = analyzer_instance.get_type_name_from_ptr(entry.get('ELEMENT_TYPE_PTR', -1))
+        lines.append(f"{i:<3} | {el_type_name:<20} | {str(entry.get('LOWER_BOUND')):<6} | {str(entry.get('UPPER_BOUND')):<6} | {str(entry.get('SIZE')):<5}")
+    return "\n".join(lines)
+
+def format_consl(consl, analyzer_instance):
+    lines = []
+    if not consl:
+        lines.append("CONSL is empty.")
+        return "\n".join(lines)
+    header = f"{'Idx':<3} | {'Value':<20} | {'Type':<20}"
+    lines.append(header)
+    lines.append("-" * len(header))
+    for i, entry in enumerate(consl):
+        type_name = analyzer_instance.get_type_name_from_ptr(entry.get('TYPE_PTR', -1))
+        lines.append(f"{i:<3} | {str(entry.get('VALUE')):<20} | {type_name:<20}")
+    return "\n".join(lines)
+
 
 @app.route('/compile', methods=['POST'])
 def compile():
@@ -176,8 +258,7 @@ def compile():
 
         # --- Generate Constant Table String ---
         # unique_constants_list is already available from token sequence generation
-        constant_table_str_lines = [
-            "Constant Table (c):", "-------------------"]
+        constant_table_str_lines = []
         # This was sorted list of unique constant values (as strings)
         if not unique_constants_list:
             constant_table_str_lines.append("No constants found.")
@@ -201,19 +282,12 @@ def compile():
         analyzer = SemanticAnalyzer()
         analyzer.analyze(ast)
         symbol_tables = analyzer.get_symbol_tables_snapshot()
-        symbol_table_str = []
-        # The new method returns a dictionary of tables, we want SYNBL
-        for info in symbol_tables.get("SYNBL", []):
-            # Adjust the string formatting to match the new symbol entry structure
-            var_name = info.get('NAME', 'N/A')
-            # Assuming get_type_name_from_ptr exists and is accessible, or handle it here
-            # For simplicity, let's just show the type pointer for now.
-            type_ptr = info.get('TYPE_PTR', -1)
-            initialized = info.get('INITIALIZED', False)
-            category = info.get('CAT', 'N/A')
-            
-            # A more detailed representation:
-            symbol_table_str.append(f"Name: {var_name}, Category: {category}, Type Ptr: {type_ptr}, Initialized: {initialized}")
+        
+        synbl_str = format_synbl(symbol_tables.get("SYNBL", []), analyzer)
+        typel_str = format_typel(symbol_tables.get("TYPEL", []))
+        pfinfl_str = format_pfinfl(symbol_tables.get("PFINFL", []), analyzer)
+        ainfl_str = format_ainfl(symbol_tables.get("AINFL", []), analyzer)
+        consl_str = format_consl(symbol_tables.get("CONSL", []), analyzer)
 
         # Step 4: Generate intermediate code
         generator = IntermediateCodeGenerator()
@@ -234,9 +308,13 @@ def compile():
             'delimiterTable': final_delimiter_table_str,
             'identifierTable': final_identifier_table_str,
             'constantTable': final_constant_table_str,
-            'symbolTable': '\n'.join(symbol_table_str) if symbol_table_str else 'No symbols defined',
+            'symbolTable': synbl_str,
             'intermediate': '\n'.join(intermediate_str) if intermediate_str else 'No intermediate code generated',
-            'optimizedIntermediate': '\n'.join(optimized_intermediate_str) if optimized_intermediate_str else 'No optimized intermediate code generated'
+            'optimizedIntermediate': '\n'.join(optimized_intermediate_str) if optimized_intermediate_str else 'No optimized intermediate code generated',
+            'typel': typel_str,
+            'pfinfl': pfinfl_str,
+            'ainfl': ainfl_str,
+            'consl': consl_str
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
