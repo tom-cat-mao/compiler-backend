@@ -6,6 +6,7 @@ import ply.yacc as yacc
 # Tokens are the basic building blocks of the input language, such as keywords, identifiers, numbers, and operators.
 tokens = (
     'NUMBER',      # Represents numeric values (integers)
+    'REAL_NUMBER', # Represents real numeric values (e.g., 3.14)
     'PLUS',        # Represents the '+' operator
     'MINUS',       # Represents the '-' operator
     'TIMES',       # Represents the '*' operator
@@ -28,6 +29,8 @@ tokens = (
     'VAR',         # Represents the 'var' keyword
     'INTEGER',     # Represents the 'integer' keyword
     'BOOLEAN',     # Represents the 'boolean' keyword
+    'REAL',        # Represents the 'real' keyword
+    'CHAR',        # Represents the 'char' keyword
     'BEGIN',       # Represents the 'begin' keyword
     'END',         # Represents the 'end' keyword
     'IF',          # Represents the 'if' keyword
@@ -36,7 +39,7 @@ tokens = (
     'WHILE',       # Represents the 'while' keyword
     'DO',          # Represents the 'do' keyword
     'WRITELN',     # Represents the 'writeln' keyword
-    'STRING',      # Represents string literals
+    'STRING',      # Represents string literals (which can be chars or strings)
 )
 
 t_PLUS = r'\+'
@@ -46,6 +49,7 @@ t_DIVIDE = r'/'
 t_LPAREN = r'\('
 t_RPAREN = r'\)'
 t_NUMBER = r'\d+'
+t_REAL_NUMBER = r'\d+\.\d+' # Matches numbers like 3.14, 0.5 etc.
 t_SEMICOLON = r';'
 t_COLON = r':'
 t_COMMA = r','
@@ -56,7 +60,8 @@ t_GT = r'>'
 t_EQ = r'='
 t_LE = r'<='
 t_GE = r'>='
-t_STRING = r'\'[^\']*\''  # Matches single-quoted strings
+# t_STRING = r'\'[^\']*\''  # Matches single-quoted strings
+t_STRING = r"\'([^\']|\'\')*\'" # Handles Pascal-style strings with '' for a single quote
 
 # Reserved keywords mapping
 reserved = {
@@ -65,6 +70,8 @@ reserved = {
     'var': 'VAR',
     'integer': 'INTEGER',
     'boolean': 'BOOLEAN',
+    'real': 'REAL',        # Added
+    'char': 'CHAR',        # Added
     'begin': 'BEGIN',
     'end': 'END',
     'if': 'IF',
@@ -134,7 +141,9 @@ def p_id_list(p):
 
 def p_type(p):
     '''type : INTEGER
-            | BOOLEAN'''
+            | BOOLEAN
+            | REAL
+            | CHAR'''
     p[0] = p[1]
 
 def p_statements(p):
@@ -179,26 +188,20 @@ def p_while_statement(p):
     'while_statement : WHILE expression DO BEGIN statements END'
     p[0] = ('while', p[2], p[5])
 
-def p_writeln_statement(p):
-    '''writeln_statement : WRITELN LPAREN expression RPAREN
-                         | WRITELN LPAREN string_expression_list RPAREN'''
-    if len(p) == 5:
-        p[0] = ('writeln', p[3])
-    else:
-        p[0] = ('writeln', p[3])
-
-def p_string_expression_list(p):
-    '''string_expression_list : string_expression_list COMMA string_expression
-                              | string_expression'''
-    if len(p) > 2:
-        p[0] = p[1] + [p[3]]
-    else:
+# Updated writeln to use a general expression_list
+def p_expression_list(p):
+    '''expression_list : expression_list COMMA expression
+                       | expression'''
+    if len(p) > 2: # list COMMA expr
+        p[0] = p[1] + [p[2]]
+    else: # single expr
         p[0] = [p[1]]
 
-def p_string_expression(p):
-    '''string_expression : expression
-                         | STRING'''
-    p[0] = p[1]
+def p_writeln_statement(p):
+    '''writeln_statement : WRITELN LPAREN expression_list RPAREN'''
+    p[0] = ('writeln', p[3]) # p[3] is the list of expressions
+
+# Removed p_string_expression_list and p_string_expression as expression_list covers them
 
 def p_expression(p):
     '''expression : simple_expression
@@ -227,11 +230,30 @@ def p_term(p):
 def p_factor(p):
     '''factor : LPAREN expression RPAREN
               | NUMBER
+              | REAL_NUMBER
+              | STRING
               | ID'''
-    if len(p) > 2:
+    if len(p) == 4:  # LPAREN expression RPAREN
         p[0] = p[2]
     else:
-        p[0] = p[1] if isinstance(p[1], int) else p[1]
+        token_type = p.slice[1].type
+        token_value = p[1]
+        if token_type == 'NUMBER':
+            p[0] = ('NUMBER', int(token_value))
+        elif token_type == 'REAL_NUMBER':
+            p[0] = ('REAL_NUMBER', float(token_value))
+        elif token_type == 'STRING': # Covers char and string literals
+            # raw_literal is like "'it''s'" or "'a'"
+            # content is like "it''s" or "a" (stripping outer quotes)
+            content = token_value[1:-1]
+            # processed_value is like "it's" or "a" (handling Pascal '' escape)
+            processed_value = content.replace("''", "'")
+            if len(processed_value) == 1:
+                p[0] = ('CHAR_LITERAL', processed_value) # AST node type for char
+            else:
+                p[0] = ('STRING_LITERAL', processed_value) # AST node type for string
+        elif token_type == 'ID':
+            p[0] = ('ID', token_value)
 
 def p_addop(p):
     '''addop : PLUS
