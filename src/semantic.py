@@ -395,7 +395,7 @@ class SemanticAnalyzer:
         """
         if not decls_list: return
 
-        print(f"DEBUG: Processing declarations list: {decls_list}")
+        # print(f"DEBUG: Processing declarations list: {decls_list}")
 
         for decl_item in decls_list:
             # AST structure from parser for var decls: ('var', ['identifier_string'], 'type_string')
@@ -405,7 +405,7 @@ class SemanticAnalyzer:
                 id_list_from_ast = decl_item[1] 
                 type_name_str = decl_item[2] # This is directly the type string like 'integer'
 
-                print(f"DEBUG: Declaration item: {decl_item}, Extracted id_list: {id_list_from_ast}, Extracted type_name: {type_name_str}")
+                # print(f"DEBUG: Declaration item: {decl_item}, Extracted id_list: {id_list_from_ast}, Extracted type_name: {type_name_str}")
 
                 ids_to_declare = []
                 if isinstance(id_list_from_ast, list):
@@ -422,10 +422,10 @@ class SemanticAnalyzer:
                     else:
                         print(f"WARNING: Unhandled id_list_from_ast format: {id_list_from_ast}")
                 
-                print(f"DEBUG: IDs to declare for type {type_name_str}: {ids_to_declare}")
+                # print(f"DEBUG: IDs to declare for type {type_name_str}: {ids_to_declare}")
 
                 for var_name in ids_to_declare:
-                    print(f"DEBUG: Declaring symbol: Name='{var_name}', Cat='{category_default}', Type='{type_name_str}'")
+                    # print(f"DEBUG: Declaring symbol: Name='{var_name}', Cat='{category_default}', Type='{type_name_str}'")
                     try:
                         self.declare_symbol(var_name, category_default, type_name_str)
                     except Exception as e:
@@ -443,14 +443,14 @@ class SemanticAnalyzer:
         node_type = stmt_node[0]
 
         # Add this print statement for debugging
-        print(f"DEBUG: Analyzing statement node: {stmt_node}")
+        # print(f"DEBUG: Analyzing statement node: {stmt_node}")
 
         if node_type == 'assign':
             # AST node is actually: ('assign', var_name_string, expr_node)
             # Example: ('assign', 'counter', '10')
             
             # Print the part of the AST you expect to contain the variable name
-            print(f"DEBUG: Assignment - stmt_node[1]: {stmt_node[1]}")
+            # print(f"DEBUG: Assignment - stmt_node[1]: {stmt_node[1]}")
             # The following 'if' and print statement for stmt_node[1][1] are based on a wrong assumption
             # if isinstance(stmt_node[1], tuple) and len(stmt_node[1]) > 1:
             #      print(f"DEBUG: Assignment - stmt_node[1][1] (expected var_name or token): {stmt_node[1][1]}")
@@ -458,7 +458,7 @@ class SemanticAnalyzer:
             var_name = stmt_node[1] # CORRECTED: Directly use stmt_node[1]
             expr_node = stmt_node[2]
 
-            print(f"DEBUG: Assignment - Extracted var_name: '{var_name}', Type: {type(var_name)}") # Crucial print
+            # print(f"DEBUG: Assignment - Extracted var_name: '{var_name}', Type: {type(var_name)}") # Crucial print
 
             var_symbol = self.lookup_symbol(var_name)
             if not var_symbol:
@@ -515,7 +515,7 @@ class SemanticAnalyzer:
 
 
     def get_expression_type_ptr(self, expr_node):
-        print(f"DEBUG: get_expression_type_ptr called with: {expr_node}, type: {type(expr_node)}")
+        # print(f"DEBUG: get_expression_type_ptr called with: {expr_node}, type: {type(expr_node)}")
 
         # 1. Handle direct literals or identifiers if parser provides them as raw values
         if isinstance(expr_node, str):
@@ -529,7 +529,7 @@ class SemanticAnalyzer:
             except ValueError:
                 # If it's a string, not 'true'/'false', not a number string,
                 # it must be an identifier.
-                print(f"DEBUG: Treating string '{expr_node}' as an ID.")
+                # print(f"DEBUG: Treating string '{expr_node}' as an ID.")
                 symbol = self.lookup_symbol(expr_node) # Treat as ID
                 if not symbol:
                     raise ValueError(f"Identifier '{expr_node}' not declared.")
