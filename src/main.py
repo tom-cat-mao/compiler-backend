@@ -221,22 +221,20 @@ def main(file_path):
     
     # Perform semantic analysis
     analyzer = SemanticAnalyzer()
-    symbol_table = None # Initialize symbol_table
+    all_symbol_tables = None # Initialize
     try:
         analyzer.analyze(ast)
-        print("Symbol Table (after semantic analysis):")
-        print("---------------------------------------")
-        symbol_table = analyzer.get_symbol_table()
-        if not symbol_table:
-            print("Symbol table is empty.")
-        else:
-            max_var_len = max(len(var_name) for var_name in symbol_table) if symbol_table else 10
-            max_type_len_sym = max(len(info['type']) for info in symbol_table.values()) if symbol_table else 10
-            header_sym = f"{'Variable':<{max_var_len}} | {'Type':<{max_type_len_sym}} | Initialized"
-            print(header_sym)
-            print("-" * len(header_sym))
-            for var_name, info in sorted(symbol_table.items()):
-                print(f"{var_name:<{max_var_len}} | {info['type']:<{max_type_len_sym}} | {info['initialized']}")
+        print("Semantic Analysis Complete. Symbol Tables:")
+        print("==========================================")
+        all_symbol_tables = analyzer.get_symbol_tables_snapshot()
+        
+        print_synbl(all_symbol_tables.get("SYNBL", []), analyzer) # Pass analyzer for type name resolution
+        print_typel(all_symbol_tables.get("TYPEL", []))
+        print_pfinfl(all_symbol_tables.get("PFINFL", []), analyzer)
+        print_ainfl(all_symbol_tables.get("AINFL", []), analyzer)
+        print_consl(all_symbol_tables.get("CONSL", []), analyzer)
+        # print_scope_stack(all_symbol_tables.get("SCOPE_STACK_SNAPSHOT", [])) # Optional: for debugging scope
+
         print("\n")
     except ValueError as e:
         print(f"Semantic Error: {e}")
@@ -244,8 +242,12 @@ def main(file_path):
     
     # Generate intermediate code
     generator = IntermediateCodeGenerator()
-    if symbol_table: # Ensure symbol_table is available
-        generator.set_symbol_table(symbol_table) 
+    # The IntermediateCodeGenerator might need access to the semantic analyzer 
+    # or specific tables for its operations.
+    # For now, we assume it can work with the AST or might need an update.
+    # If it used the old symbol_table format, this part needs adjustment.
+    # Example: generator.set_semantic_analyzer(analyzer) or generator.set_synbl(all_symbol_tables.get("SYNBL"))
+    
     code = generator.generate(ast)
     print("Intermediate Code (Four-Tuple Sequence):")
     print("---------------------------------------")
@@ -308,6 +310,110 @@ def main(file_path):
         print("Skipping target code generation as optimized code is empty.")
     print("\n")
 
+
+def print_synbl(synbl, analyzer_instance): # analyzer_instance might not be needed if type name is removed
+    print("\nSYNBL (Symbol Table):")
+    print("---------------------")
+    if not synbl:
+        print("SYNBL is empty.")
+        return
+    # Updated header to only include Idx, Name, Cat, Addr/Info
+    header = f"{'Idx':<3} | {'Name':<15} | {'Cat':<5} | {'Addr/Info':<20}"
+    print(header)
+    print("-" * len(header))
+    for i, entry in enumerate(synbl):
+        # type_name = analyzer_instance.get_type_name_from_ptr(entry.get('TYPE_PTR', -1)) # Type is removed
+        addr_info_str = str(entry.get('ADDR_PTR')) # Default ADDR_PTR
+        
+        # Logic for specific categories for Addr/Info
+        cat = entry.get('CAT')
+        addr_ptr = entry.get('ADDR_PTR')
+
+        if cat == 'f' and isinstance(addr_ptr, int):
+            addr_info_str = f"PFINFL_IDX:{addr_ptr}"
+        elif cat == 'c' and isinstance(addr_ptr, int):
+            addr_info_str = f"CONSL_IDX:{addr_ptr}"
+        elif cat in ['v', 'p_val', 'p_ref']: # For variables and parameters, ADDR_PTR is usually offset or address
+            addr_info_str = str(addr_ptr if addr_ptr is not None else "N/A")
+        elif cat == 'program_name' or cat == 't': # Program name or type name might not have a typical ADDR_PTR
+            addr_info_str = "N/A"
+
+
+        # Updated print statement to match the new header
+        print(f"{i:<3} | {str(entry.get('NAME')):<15} | {str(cat):<5} | {addr_info_str:<20}")
+
+def print_typel(typel):
+    print("\nTYPEL (Type Table):")
+    print("-------------------")
+    if not typel:
+        print("TYPEL is empty.")
+        return
+    header = f"{'Idx':<3} | {'Kind':<10} | {'Details':<30}"
+    print(header)
+    print("-" * len(header))
+    for i, entry in enumerate(typel):
+        details_str = ""
+        if entry.get('KIND') == 'basic':
+            details_str = f"Name: {entry.get('NAME')}"
+        elif entry.get('KIND') == 'array':
+            details_str = f"AINFL_PTR: {entry.get('AINFL_PTR')}"
+        # Add other kinds if any
+        print(f"{i:<3} | {str(entry.get('KIND')):<10} | {details_str:<30}")
+
+def print_pfinfl(pfinfl, analyzer_instance):
+    print("\nPFINFL (Function/Procedure Info Table):")
+    print("---------------------------------------")
+    if not pfinfl:
+        print("PFINFL is empty.")
+        return
+    header = f"{'Idx':<3} | {'Level':<5} | {'Params':<6} | {'Return Type':<15} | {'Entry Label':<20} | {'Param SYNBL Idxs':<20}"
+    print(header)
+    print("-" * len(header))
+    for i, entry in enumerate(pfinfl):
+        ret_type_name = "PROCEDURE"
+        if entry.get('RETURN_TYPE_PTR', -1) != -1:
+             ret_type_name = analyzer_instance.get_type_name_from_ptr(entry.get('RETURN_TYPE_PTR'))
+        param_idxs_str = ", ".join(map(str, entry.get('PARAM_SYNBL_INDICES', [])))
+        print(f"{i:<3} | {str(entry.get('LEVEL')):<5} | {str(entry.get('PARAM_COUNT')):<6} | {ret_type_name:<15} | {str(entry.get('ENTRY_LABEL')):<20} | {param_idxs_str:<20}")
+
+def print_ainfl(ainfl, analyzer_instance):
+    print("\nAINFL (Array Info Table):")
+    print("-------------------------")
+    if not ainfl:
+        print("AINFL is empty.")
+        return
+    header = f"{'Idx':<3} | {'Element Type':<20} | {'LowerB':<6} | {'UpperB':<6} | {'Size':<5}"
+    print(header)
+    print("-" * len(header))
+    for i, entry in enumerate(ainfl):
+        el_type_name = analyzer_instance.get_type_name_from_ptr(entry.get('ELEMENT_TYPE_PTR', -1))
+        print(f"{i:<3} | {el_type_name:<20} | {str(entry.get('LOWER_BOUND')):<6} | {str(entry.get('UPPER_BOUND')):<6} | {str(entry.get('SIZE')):<5}")
+
+def print_consl(consl, analyzer_instance):
+    print("\nCONSL (Constant Table):")
+    print("-----------------------")
+    if not consl:
+        print("CONSL is empty.")
+        return
+    header = f"{'Idx':<3} | {'Value':<20} | {'Type':<20}"
+    print(header)
+    print("-" * len(header))
+    for i, entry in enumerate(consl):
+        type_name = analyzer_instance.get_type_name_from_ptr(entry.get('TYPE_PTR', -1))
+        print(f"{i:<3} | {str(entry.get('VALUE')):<20} | {type_name:<20}")
+
+def print_scope_stack(scope_stack): # Optional debug helper
+    print("\nScope Stack Snapshot:")
+    print("---------------------")
+    if not scope_stack:
+        print("Scope stack is empty or not captured.")
+        return
+    header = f"{'Idx':<3} | {'Level':<5} | {'Scope ID':<8} | {'Next Offset':<10}"
+    print(header)
+    print("-" * len(header))
+    for i, entry in enumerate(scope_stack):
+        level, scope_id, next_offset = entry
+        print(f"{i:<3} | {level:<5} | {scope_id:<8} | {next_offset:<10}")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
