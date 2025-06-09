@@ -11,7 +11,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS to allow frontend requests from different origins
+CORS(app, resources={r"/compile": {"origins": "*"}}, supports_credentials=True)
 
 
 @app.route('/compile', methods=['POST'])
@@ -200,15 +200,24 @@ def compile():
         # Step 3: Semantic Analysis - Build symbol table
         analyzer = SemanticAnalyzer()
         analyzer.analyze(ast)
-        symbol_table = analyzer.get_symbol_table()
+        symbol_tables = analyzer.get_symbol_tables_snapshot()
         symbol_table_str = []
-        for var_name, info in symbol_table.items():
-            symbol_table_str.append(f"Variable: {var_name}, Type: {
-                                    info['type']}, Initialized: {info['initialized']}")
+        # The new method returns a dictionary of tables, we want SYNBL
+        for info in symbol_tables.get("SYNBL", []):
+            # Adjust the string formatting to match the new symbol entry structure
+            var_name = info.get('NAME', 'N/A')
+            # Assuming get_type_name_from_ptr exists and is accessible, or handle it here
+            # For simplicity, let's just show the type pointer for now.
+            type_ptr = info.get('TYPE_PTR', -1)
+            initialized = info.get('INITIALIZED', False)
+            category = info.get('CAT', 'N/A')
+            
+            # A more detailed representation:
+            symbol_table_str.append(f"Name: {var_name}, Category: {category}, Type Ptr: {type_ptr}, Initialized: {initialized}")
 
         # Step 4: Generate intermediate code
         generator = IntermediateCodeGenerator()
-        generator.set_symbol_table(symbol_table)
+        generator.set_symbol_table(symbol_tables.get("SYNBL", []))
         code = generator.generate(ast)
         intermediate_str = [f"{i+1}: {quad}" for i, quad in enumerate(code)]
 

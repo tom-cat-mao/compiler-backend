@@ -20,7 +20,8 @@ class IntermediateCodeGenerator:
 
     def set_symbol_table(self, symbol_table):
         """Set the symbol table reference for type information."""
-        self.symbol_table = symbol_table
+        # The symbol_table is now the entire SYNBL list from the analyzer
+        self.symbol_table = {entry['NAME']: entry for entry in symbol_table}
 
     def generate(self, ast):
         """
