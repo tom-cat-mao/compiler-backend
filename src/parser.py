@@ -78,7 +78,7 @@ reserved = {
 def t_ID(t):
     r'[a-zA-Z][a-zA-Z0-9]*'
     t.type = reserved.get(t.value.lower(), 'ID')  # Check if it's a reserved keyword
-    print(f"Token: ID, Value: {t.value}, Line: {t.lineno}, Position: {t.lexpos}")
+    # print(f"Token: ID, Value: {t.value}, Line: {t.lineno}, Position: {t.lexpos}")
     return t
 
 t_ignore = ' \t'
@@ -258,28 +258,75 @@ def p_expression_logical(p):
 def p_error(p):
     if p:
         print(f"Syntax error in input at token '{p.value}' (type: {p.type}, line: {p.lineno})")
-        print(f"Parser context: Near token at position {p.lexpos}")
+        # Consider adding parser.errok() or other recovery mechanisms if needed
     else:
         print("Syntax error in input at EOF!")
 
-parser = yacc.yacc()
+parser = yacc.yacc(debug=False) # You can control debug logging here or via a parameter
 
-def parse(input_string):
-    print("Starting parsing process...")
+def parse(input_string, debug_parser=False):
+    """
+    Performs lexical analysis and parsing of the input string.
+
+    Args:
+        input_string (str): The source code to parse.
+        debug_parser (bool): Flag to enable YACC debugging.
+
+    Returns:
+        tuple: (list_of_tokens, abstract_syntax_tree)
+               Returns (None, None) if parsing fails at a very early stage or input is empty.
+    """
+    if not input_string:
+        return [], None # Return empty tokens and no AST for empty input
+
+    # 1. Lexical Analysis: Collect all tokens
     lexer.input(input_string)
-    print("Token stream:")
-    for tok in lexer:
-        print(f"Token: {tok.type}, Value: {tok.value}, Line: {tok.lineno}, Position: {tok.lexpos}")
-    lexer.input(input_string)  # Reset lexer for actual parsing
-    return parser.parse(input_string, lexer=lexer, debug=True)
+    collected_tokens = []
+    while True:
+        tok = lexer.token()
+        if not tok:
+            break
+        collected_tokens.append(tok)
+
+    # 2. Syntactic Analysis: Parse the tokens to build AST
+    # Reset lexer for the parser. PLY's yacc.parse() will use this lexer instance.
+    lexer.input(input_string) 
+    ast = parser.parse(input_string, lexer=lexer, debug=debug_parser)
+    print(f"AST: {ast}") if debug_parser else None  # Print AST if debugging is enabled
+    return collected_tokens, ast
 
 if __name__ == "__main__":
+    # This block is for testing parser.py independently
+    def print_ast_json(ast_node):
+        import json
+        try:
+            print(json.dumps(ast_node, indent=2))
+        except TypeError:
+            print(ast_node) # Fallback for non-serializable parts
+
     while True:
         try:
-            s = input('calc > ')
-            if s == 'exit':
+            s = input('parser_test > ')
+            if not s or s.lower() == 'exit':
                 break
-            result = parse(s)
-            print(result)
+            
+            tokens, ast_result = parse(s) # Call the modified parse function
+            
+            print("\n--- Collected Tokens ---")
+            if tokens:
+                for token in tokens:
+                    print(f"  {token}")
+            else:
+                print("  No tokens collected.")
+            
+            print("\n--- Abstract Syntax Tree (AST) ---")
+            if ast_result is not None:
+                print_ast_json(ast_result)
+            else:
+                print("  Parsing failed or no AST generated.")
+            print("-" * 30 + "\n")
+
         except EOFError:
             break
+        except Exception as e:
+            print(f"An error occurred during parsing test: {e}")

@@ -64,3 +64,15 @@ src/parsetab.py
 # Miscellaneous
 .DS_Store
 Thumbs.db
+
+# Code counter
+.VsCodeCounter/
+
+# asm files
+result/
+*.asm
+
+# Knowledge for copilot
+dag_rule.md
+four_tuple_code_generate_rule.md
+symble_table_rule.md

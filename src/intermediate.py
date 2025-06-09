@@ -20,22 +20,20 @@ class IntermediateCodeGenerator:
 
     def set_symbol_table(self, symbol_table):
         """Set the symbol table reference for type information."""
-        self.symbol_table = symbol_table
+        # The symbol_table is now the entire SYNBL list from the analyzer
+        self.symbol_table = {entry['NAME']: entry for entry in symbol_table}
 
     def generate(self, ast):
         """
         Generate four-tuple intermediate code from the Abstract Syntax Tree (AST).
-        Four-tuple format is (operator, operand1, operand2, result).
-        Resets the code list and counters before generation.
-        Returns the result of the code generation process.
+        Quadruple format is (operator, operand1, operand2, result) as per markdown.
         """
-        self.code = []       # Reset the code list for a new generation
-        self.temp_count = 0  # Reset the temporary variable counter
-        self.label_count = 0 # Reset the label counter
+        self.code = []
+        self.temp_count = 0
+        self.label_count = 0
         if isinstance(ast, tuple) and ast[0] == 'program':
-            _, _, var_decls, stmts = ast
-            # Process variable declarations if needed (though handled by semantic analyzer)
-            # Generate code for statements
+            # AST structure: ('program', prog_name, var_declarations, statements)
+            _, _, _, stmts = ast
             self.generate_statements(stmts)
         return self.code
 
@@ -46,65 +44,151 @@ class IntermediateCodeGenerator:
 
     def generate_statement(self, stmt):
         """Generate code for a single statement."""
-        if isinstance(stmt, tuple):
-            stmt_type = stmt[0]
-            if stmt_type == 'assign':
-                var_name, expr = stmt[1], stmt[2]
-                result = self.generate_expression(expr)
-                self.code.append((':=', result, '', var_name))
-            elif stmt_type == 'if':
-                cond, then_stmts, else_stmts = stmt[1], stmt[2], stmt[3]
-                cond_result = self.generate_expression(cond)
-                label_then = self.new_label()
-                label_end = self.new_label()
-                label_else = label_end if else_stmts is None else self.new_label()
-                self.code.append(('if', cond_result, '', label_then))
-                self.code.append(('goto', '', '', label_else))
-                self.code.append(('label', '', '', label_then))
+        if not isinstance(stmt, tuple):
+            # Potentially skip empty statements or handle errors
+            return
+
+        stmt_type = stmt[0]
+        if stmt_type == 'assign':
+            # Rule: v = E  =>  (=, res(E), _, v)
+            var_name, expr = stmt[1], stmt[2]
+            expr_result = self.generate_expression(expr)
+            self.code.append(('=', expr_result, '_', var_name))
+        elif stmt_type == 'if':
+            # Assuming (if, cond, _, L_true_target) means "if cond is TRUE, jump to L_true_target"
+            #
+            # Structure for if E then S1 else S2:
+            #   code for E -> cond_result
+            #   L_then = new_label()
+            #   L_else = new_label()
+            #   L_end  = new_label()
+            #   (if, cond_result, _, L_else)  // If false, jump to S1
+            #   code for S1
+            #   (el, _, _, L_end)            // After S1, unconditional jump to L_end
+            #   (lb, _, _, L_else)           // Label for S2
+            #   code for S2
+            #   (ie, _, _, L_end)            // Mark end of if structure
+            #
+            # Structure for if E then S1 (no else):
+            #   code for E -> cond_result
+            #   L_then = new_label()
+            #   L_end  = new_label()
+            #   (if, cond_result, _, L_end)  // If false, jump to S1
+            #   code for S1
+            #   (ie, _, _, L_end)                // Mark end of if structure
+
+            cond, then_stmts, else_stmts = stmt[1], stmt[2], stmt[3]
+            cond_result = self.generate_expression(cond)
+
+            label_then_start = self.new_label()
+            label_if_end = self.new_label()
+            
+            if else_stmts:
+                label_else_start = self.new_label()
+                # If cond_result is FALSE, jump to label_else_start
+                self.code.append(('if', cond_result, '_', label_else_start))
+            
                 self.generate_statements(then_stmts)
-                if else_stmts:
-                    self.code.append(('goto', '', '', label_end))
-                    self.code.append(('label', '', '', label_else))
-                    self.generate_statements(else_stmts)
-                self.code.append(('label', '', '', label_end))
-            elif stmt_type == 'while':
-                cond, body_stmts = stmt[1], stmt[2]
-                label_start = self.new_label()
-                label_body = self.new_label()
-                label_end = self.new_label()
-                self.code.append(('label', '', '', label_start))
-                cond_result = self.generate_expression(cond)
-                self.code.append(('if', cond_result, '', label_body))
-                self.code.append(('goto', '', '', label_end))
-                self.code.append(('label', '', '', label_body))
-                self.generate_statements(body_stmts)
-                self.code.append(('goto', '', '', label_start))
-                self.code.append(('label', '', '', label_end))
-            elif stmt_type == 'writeln':
-                expr = stmt[1]
-                if isinstance(expr, list):
-                    for e in expr:
-                        result = self.generate_expression(e)
-                        self.code.append(('write', result, '', ''))
-                else:
-                    result = self.generate_expression(expr)
-                    self.code.append(('write', result, '', ''))
+                # After 'then' block, unconditionally jump to the end of the if-else. This is 'el'.
+                self.code.append(('el', '_', '_', label_if_end)) 
+
+                # Else block
+                self.code.append(('lb', '_', '_', label_else_start))
+                self.generate_statements(else_stmts)
+                # Fall through to the end label after the else block
+
+                # End of if-else statement
+                self.code.append(('ie', '_', '_', label_if_end)) # Mark if-end
+            else: # No else statement
+                # If cond_result is FALSE, jump to label_then_start
+                self.code.append(('if', cond_result, '_', label_if_end))
+                
+                self.generate_statements(then_stmts)
+                # Fall through to the end label after the then block
+
+                # End of if statement
+                self.code.append(('ie', '_', '_', label_if_end)) # Mark if-end
+
+        elif stmt_type == 'while':
+            # Following the rule: while (E) S
+            # L_eval_E: (label for start of condition evaluation)
+            # ... code for E ... -> cond_res
+            # (do, cond_res, _, L_exit) ; if cond_res is false, jump to L_exit
+            # ... code for S ...
+            # (we, _, _, L_eval_E)     ; jump back to L_eval_E
+            # L_exit: (label for loop exit)
+            
+            cond_expr, body_stmts = stmt[1], stmt[2]
+
+            label_eval_E = self.new_label()    # Label for the start of condition evaluation (target for 'we')
+            label_loop_exit = self.new_label() # Label for loop exit (target for 'do')
+
+            self.code.append(('wh', '_', '_', '_'))  # Emit the 'while' instruction
+
+            # Create the label for the start of condition evaluation.
+            self.code.append(('lb', '_', '_', label_eval_E))
+            
+            # Generate quadruples for condition E, result in res(E).
+            cond_result = self.generate_expression(cond_expr)
+
+            # Emit: (do, cond_result, _, label_loop_exit)
+            # This instruction means: if cond_result is false, jump to label_loop_exit.
+            self.code.append(('do', cond_result, '_', label_loop_exit))
+
+            # Generate quadruples for statement S (the loop body).
+            self.generate_statements(body_stmts)
+
+            # Emit: (we, _, _, label_eval_E)
+            # This instruction means: unconditional jump to label_eval_E.
+            self.code.append(('we', '_', '_', label_eval_E))
+            # self.code.append(('gt', '_', '_', label_eval_E))
+
+            # Create the label for the loop exit.
+            self.code.append(('lb', '_', '_', label_loop_exit))
+
+        elif stmt_type == 'writeln':
+            # Assuming 'writeln' translates to one or more 'write' operations
+            # The markdown doesn't specify 'writeln' or 'write' opcodes.
+            # We'll use a 'write' opcode for each argument.
+            expr_list = stmt[1] # This is a list of expressions from parser
+            if isinstance(expr_list, list):
+                for expr_item in expr_list:
+                    item_result = self.generate_expression(expr_item)
+                    self.code.append(('write', item_result, '_', '_'))
+            else: # Single expression for writeln (should be list based on parser)
+                item_result = self.generate_expression(expr_list)
+                self.code.append(('write', item_result, '_', '_'))
+
 
     def generate_expression(self, expr):
         """Generate code for an expression and return the result (temp variable or value)."""
-        if isinstance(expr, int):
+        if isinstance(expr, int) or isinstance(expr, bool): # Constants
             return expr
         elif isinstance(expr, str):
-            return expr  # Variable name or string literal
+            # Could be an identifier (variable name) or a string literal.
+            # If it's a variable, its value is used directly.
+            # If it's a string literal (e.g. from writeln), it's also used directly.
+            return expr
         elif isinstance(expr, tuple):
+            # Binary/Unary operations: (operator, operand1, operand2) or (operator, operand1)
             op = expr[0]
-            if op in ('+', '-', '*', '/', '<', '>', '=', '<=', '>=', 'and'):
-                left_val = self.generate_expression(expr[1])
-                right_val = self.generate_expression(expr[2])
-                temp = self.new_temp()
-                self.code.append((op, left_val, right_val, temp))
-                return temp
-        raise ValueError(f"Unsupported expression type: {expr}")
+            
+            # For binary operations like +, -, *, /, <, >, =, <=, >=, and
+            if op in ('+', '-', '*', '/', '<', '>', '=', '<=', '>=', 'and', 'or'): # Added 'or' for completeness
+                if len(expr) == 3: # Binary operation
+                    left_val = self.generate_expression(expr[1])
+                    right_val = self.generate_expression(expr[2])
+                    temp_result = self.new_temp()
+                    self.code.append((op, left_val, right_val, temp_result))
+                    return temp_result
+            # Potentially handle unary minus or NOT if your AST supports it
+            # elif op == 'uminus' and len(expr) == 2:
+            #     operand_val = self.generate_expression(expr[1])
+            #     temp_result = self.new_temp()
+            #     self.code.append(('-', 0, operand_val, temp_result)) # Or a specific 'uminus' op
+            #     return temp_result
+            
+        raise ValueError(f"Unsupported expression type or structure: {expr}")
 
     def get_code(self):
         """Return the generated intermediate code."""
