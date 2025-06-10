@@ -53,8 +53,10 @@ class TargetCodeGenerator:
     def _get_operand_assembly_str(self, operand_value, is_code_label_name=False):
         # Formats an operand for use in an assembly instruction.
         # Does NOT declare variables; declaration is handled in the pre-pass.
-        if isinstance(operand_value, (int, float)):
+        if isinstance(operand_value, int):
             return str(int(operand_value)) # Immediate value
+        elif isinstance(operand_value, float):
+            return str(int(operand_value))
         elif isinstance(operand_value, str):
             if operand_value.isdigit() or (operand_value.startswith('-') and operand_value[1:].isdigit()):
                 return operand_value # Immediate number represented as a string

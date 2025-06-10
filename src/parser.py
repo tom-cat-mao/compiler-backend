@@ -6,6 +6,7 @@ import ply.yacc as yacc
 # Tokens are the basic building blocks of the input language, such as keywords, identifiers, numbers, and operators.
 tokens = (
     'NUMBER',      # Represents numeric values (integers)
+    'REAL_NUMBER', # Represents real numeric values (e.g., 3.14)
     'PLUS',        # Represents the '+' operator
     'MINUS',       # Represents the '-' operator
     'TIMES',       # Represents the '*' operator
@@ -28,6 +29,8 @@ tokens = (
     'VAR',         # Represents the 'var' keyword
     'INTEGER',     # Represents the 'integer' keyword
     'BOOLEAN',     # Represents the 'boolean' keyword
+    'REAL',        # Represents the 'real' keyword
+    'CHAR',        # Represents the 'char' keyword
     'BEGIN',       # Represents the 'begin' keyword
     'END',         # Represents the 'end' keyword
     'IF',          # Represents the 'if' keyword
@@ -36,7 +39,13 @@ tokens = (
     'WHILE',       # Represents the 'while' keyword
     'DO',          # Represents the 'do' keyword
     'WRITELN',     # Represents the 'writeln' keyword
-    'STRING',      # Represents string literals
+    'STRING',      # Represents string literals (which can be chars or strings)
+    # Array-related tokens
+    'ARRAY',       # Represents the 'array' keyword
+    'OF',          # Represents the 'of' keyword
+    'LSQUARE',     # Represents the '[' character
+    'RSQUARE',     # Represents the ']' character
+    'DOTDOT',      # Represents the '..' range operator
 )
 
 t_PLUS = r'\+'
@@ -46,6 +55,7 @@ t_DIVIDE = r'/'
 t_LPAREN = r'\('
 t_RPAREN = r'\)'
 t_NUMBER = r'\d+'
+t_REAL_NUMBER = r'\d+\.\d+' # Matches numbers like 3.14, 0.5 etc.
 t_SEMICOLON = r';'
 t_COLON = r':'
 t_COMMA = r','
@@ -56,7 +66,13 @@ t_GT = r'>'
 t_EQ = r'='
 t_LE = r'<='
 t_GE = r'>='
-t_STRING = r'\'[^\']*\''  # Matches single-quoted strings
+# t_STRING = r'\'[^\']*\''  # Matches single-quoted strings
+t_STRING = r"\'([^\']|\'\')*\'" # Handles Pascal-style strings with '' for a single quote
+# Array-related token rules
+t_LSQUARE = r'\['
+t_RSQUARE = r'\]'
+t_DOTDOT = r'\.\.'
+
 
 # Reserved keywords mapping
 reserved = {
@@ -65,6 +81,8 @@ reserved = {
     'var': 'VAR',
     'integer': 'INTEGER',
     'boolean': 'BOOLEAN',
+    'real': 'REAL',        # Added
+    'char': 'CHAR',        # Added
     'begin': 'BEGIN',
     'end': 'END',
     'if': 'IF',
@@ -73,6 +91,9 @@ reserved = {
     'while': 'WHILE',
     'do': 'DO',
     'writeln': 'WRITELN',
+    # Array-related reserved words
+    'array': 'ARRAY',
+    'of': 'OF',
 }
 
 def t_ID(t):
@@ -132,10 +153,37 @@ def p_id_list(p):
     else:
         p[0] = [p[1]]
 
+# New rule for 'variable' which can be an ID or an array access
+def p_variable(p):
+    '''variable : ID
+                | ID LSQUARE expression RSQUARE'''
+    if len(p) == 2:  # Matched ID
+        p[0] = ('ID', p[1])  # AST node for simple variable
+    else:  # Matched ID LSQUARE expression RSQUARE
+        p[0] = ('array_access', p[1], p[3])  # AST node for array access
+
 def p_type(p):
     '''type : INTEGER
-            | BOOLEAN'''
+            | BOOLEAN
+            | REAL
+            | CHAR
+            | array_type_definition''' # Added array type
     p[0] = p[1]
+
+# New rule for array type definition
+def p_array_type_definition(p):
+    '''array_type_definition : ARRAY LSQUARE index_range RSQUARE OF type'''
+    # p[3] is the index_range tuple (low_bound_node, high_bound_node)
+    # p[6] is the base_type_node
+    p[0] = ('array_type', p[3][0], p[3][1], p[6])
+
+# New rule for index range (assuming integer number literals for now)
+def p_index_range(p):
+    '''index_range : NUMBER DOTDOT NUMBER'''
+    # For simplicity, we directly use the NUMBER token's value.
+    # In a more complex scenario, these could be constant expressions.
+    p[0] = (('NUMBER', int(p[1])), ('NUMBER', int(p[3])))
+
 
 def p_statements(p):
     '''statements : statements statement SEMICOLON
@@ -158,7 +206,9 @@ def p_statement(p):
     p[0] = p[1]
 
 def p_assignment(p):
-    'assignment : ID ASSIGN expression'
+    'assignment : variable ASSIGN expression' # Use 'variable' for the left-hand side
+    # p[1] is the AST node from p_variable (e.g., ('ID', 'name') or ('array_access', 'name', index_expr))
+    # p[3] is the AST node for the expression on the right-hand side
     p[0] = ('assign', p[1], p[3])
 
 def p_if_statement(p):
@@ -179,26 +229,20 @@ def p_while_statement(p):
     'while_statement : WHILE expression DO BEGIN statements END'
     p[0] = ('while', p[2], p[5])
 
-def p_writeln_statement(p):
-    '''writeln_statement : WRITELN LPAREN expression RPAREN
-                         | WRITELN LPAREN string_expression_list RPAREN'''
-    if len(p) == 5:
-        p[0] = ('writeln', p[3])
-    else:
-        p[0] = ('writeln', p[3])
-
-def p_string_expression_list(p):
-    '''string_expression_list : string_expression_list COMMA string_expression
-                              | string_expression'''
-    if len(p) > 2:
-        p[0] = p[1] + [p[3]]
-    else:
+# Updated writeln to use a general expression_list
+def p_expression_list(p):
+    '''expression_list : expression_list COMMA expression
+                       | expression'''
+    if len(p) > 2: # list COMMA expr
+        p[0] = p[1] + [p[3]] # Corrected: p[3] is the expression after the comma
+    else: # single expr
         p[0] = [p[1]]
 
-def p_string_expression(p):
-    '''string_expression : expression
-                         | STRING'''
-    p[0] = p[1]
+def p_writeln_statement(p):
+    '''writeln_statement : WRITELN LPAREN expression_list RPAREN'''
+    p[0] = ('writeln', p[3]) # p[3] is the list of expressions
+
+# Removed p_string_expression_list and p_string_expression as expression_list covers them
 
 def p_expression(p):
     '''expression : simple_expression
@@ -227,11 +271,38 @@ def p_term(p):
 def p_factor(p):
     '''factor : LPAREN expression RPAREN
               | NUMBER
-              | ID'''
-    if len(p) > 2:
-        p[0] = p[2]
+              | REAL_NUMBER
+              | STRING
+              | variable'''  # Use 'variable' for ID or array access as r-value
+    
+    # Check the type of the first token in the slice to determine the rule matched
+    # For 'variable', p[1] will already be the AST tuple from p_variable.
+    # For literals, p[1] is the token value.
+    # For LPAREN, p[1] is '('.
+
+    # Check if the first symbol is LPAREN for (expression)
+    if p.slice[1].type == 'LPAREN':
+        p[0] = p[2]  # p[2] is the expression node
+    # Check if p[1] is a tuple, which means it came from 'variable' rule
+    elif isinstance(p[1], tuple) and (p[1][0] == 'ID' or p[1][0] == 'array_access'): # This means 'variable' was matched
+        p[0] = p[1] # p[1] is already the AST node from p_variable
+    # Otherwise, it must be one of the direct literals
     else:
-        p[0] = p[1] if isinstance(p[1], int) else p[1]
+        token_type = p.slice[1].type # Get type of the token (NUMBER, REAL_NUMBER, STRING)
+        token_value = p[1]           # Get value of the token
+
+        if token_type == 'NUMBER':
+            p[0] = ('NUMBER', int(token_value))
+        elif token_type == 'REAL_NUMBER':
+            p[0] = ('REAL_NUMBER', float(token_value))
+        elif token_type == 'STRING':
+            content = token_value[1:-1]
+            processed_value = content.replace("''", "'")
+            if len(processed_value) == 1:
+                p[0] = ('CHAR_LITERAL', processed_value)
+            else:
+                p[0] = ('STRING_LITERAL', processed_value)
+        # Note: A plain 'ID' token without brackets is now handled by 'variable'
 
 def p_addop(p):
     '''addop : PLUS
@@ -292,7 +363,7 @@ def parse(input_string, debug_parser=False):
     # Reset lexer for the parser. PLY's yacc.parse() will use this lexer instance.
     lexer.input(input_string) 
     ast = parser.parse(input_string, lexer=lexer, debug=debug_parser)
-    print(f"AST: {ast}") if debug_parser else None  # Print AST if debugging is enabled
+    # print(f"AST: {ast}") #if debug_parser else None  # Print AST if debugging is enabled
     return collected_tokens, ast
 
 if __name__ == "__main__":

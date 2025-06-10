@@ -1,73 +1,93 @@
 # Define constants for stack frame layout
-LINKAGE_SIZE = 3  # Slots for Static Link, Dynamic Link, Return Address
+LINKAGE_SIZE = 3 # Slots for Static Link, Dynamic Link, Return Address
 METADATA_SLOTS_BEFORE_PARAMS = 1 # Additional slots before parameters (e.g., for param count, return value space)
 PARAMS_BASE_OFFSET = LINKAGE_SIZE + METADATA_SLOTS_BEFORE_PARAMS # Parameters start at this offset (e.g., 4)
 
 class SemanticAnalyzer:
     def __init__(self):
-        # Main Symbol Table (SYNBL) - list of symbol entries
         self.synbl = []
-        # Type Table (TYPEL) - list of type descriptors
         self.typel = []
-        # Function/Procedure Info Table (PFINFL)
         self.pfinfl = []
-        # Array Info Table (AINFL)
         self.ainfl = []
-        # Constant Table (CONSL)
         self.consl = []
 
-        # Scope Management
-        self.current_level = 0  # Static nesting depth
+        # Define sizes for basic types
+        self.type_sizes = {
+            "INTEGER": 4,
+            "REAL": 8,
+            "BOOLEAN": 1,
+            "CHAR": 1
+            # Add other basic types if any
+        }
+
+        self.current_level = 0
         self.scope_id_counter = 0
-        self.current_scope_id = self.scope_id_counter # Global scope ID
+        self.current_scope_id = self.scope_id_counter
         
-        # MODIFIED: Initialize scope_stack for global scope with PARAMS_BASE_OFFSET
-        # This will make global variables also start their offsets from PARAMS_BASE_OFFSET.
-        # If global variables should start from 0 (which is more typical for globals), 
-        # then the third element should be 0.
+        # Scope stack: (level, scope_id, next_available_offset_in_scope)
+        # Global scope's first variable offset will start from PARAMS_BASE_OFFSET
         self.scope_stack = [(self.current_level, self.current_scope_id, PARAMS_BASE_OFFSET)] 
         
-        # Initialize built-in types
+        self._initialize_basic_types()
+
+    def _initialize_basic_types(self):
         self._ensure_basic_type("INTEGER")
+        self._ensure_basic_type("REAL")
         self._ensure_basic_type("BOOLEAN")
-        self._ensure_basic_type("REAL") 
-        self._ensure_basic_type("CHAR")   
-        self._ensure_basic_type("STRING") # Added
+        self._ensure_basic_type("CHAR")
+        # Add any other predefined types here
 
-    def _get_next_scope_id(self):
+    def _ensure_basic_type(self, type_name):
+        type_name_upper = type_name.upper()
+        for i, t_entry in enumerate(self.typel):
+            if t_entry.get('KIND') == 'basic' and t_entry.get('NAME') == type_name_upper:
+                return i # Return existing TYPEL index
+        
+        size = self.type_sizes.get(type_name_upper)
+        if size is None:
+            raise ValueError(f"Size not defined for basic type: {type_name_upper}")
+
+        typel_entry = {'KIND': 'basic', 'NAME': type_name_upper, 'SIZE': size}
+        self.typel.append(typel_entry)
+        return len(self.typel) - 1
+    
+    def _resolve_type_name_to_ptr(self, type_name_str):
+        """Resolves a type name (string) to a TYPEL pointer. Handles basic and declared types."""
+        type_name_upper = type_name_str.upper()
+        # Check basic types first
+        for i, t_entry in enumerate(self.typel):
+            if t_entry.get('KIND') == 'basic' and t_entry.get('NAME') == type_name_upper:
+                return i
+        # Check user-defined types
+        type_symbol = self.lookup_symbol(type_name_str, category_filter='t')
+        if type_symbol:
+            return type_symbol['TYPE_PTR']
+        raise ValueError(f"Type '{type_name_str}' not found.")
+
+    def enter_scope(self, scope_type="block"): # Add scope_type if needed for different offset rules
+        self.current_level += 1
         self.scope_id_counter += 1
-        return self.scope_id_counter
-
-    def enter_scope(self, is_function_scope=False, param_slots_used=0): # Modified signature
-        """Enter a new scope. If it's a function, level increases."""
-        if is_function_scope:
-            self.current_level += 1
+        self.current_scope_id = self.scope_id_counter
+        # For new scopes (e.g., procedures), offset might start from 0 (for locals)
+        # or after parameters (e.g., PARAMS_BASE_OFFSET).
+        # For simple nested blocks, it might continue or reset.
+        # For now, let's assume a new local scope starts its own offset count from 0.
+        # This needs refinement if/when procedures/functions with parameters are added.
+        initial_offset_for_new_scope = 0
+        if scope_type == "procedure_or_function": # Example
+             initial_offset_for_new_scope = PARAMS_BASE_OFFSET # If locals start after params/linkage
         
-        new_scope_id = self._get_next_scope_id()
-        
-        initial_offset_for_scope = 0 # Default for global or non-function block scopes
-        if is_function_scope:
-            # Local variables start after the fixed linkage/metadata area and all parameters.
-            # PARAMS_BASE_OFFSET is where parameters begin (e.g., 4).
-            # param_slots_used is the number of slots occupied by parameters.
-            initial_offset_for_scope = PARAMS_BASE_OFFSET + param_slots_used
-            
-        self.scope_stack.append((self.current_level, new_scope_id, initial_offset_for_scope)) 
-        self.current_scope_id = new_scope_id
-        # print(f"Entered scope: Level {self.current_level}, ID {self.current_scope_id}, Initial Offset: {initial_offset_for_scope}")
+        self.scope_stack.append((self.current_level, self.current_scope_id, initial_offset_for_new_scope))
 
-
-    def exit_scope(self, is_function_scope=False):
+    def exit_scope(self):
         """Exit the current scope."""
         if len(self.scope_stack) > 1:
             exiting_level, exiting_scope_id, _ = self.scope_stack.pop()
             # print(f"Exited scope: Level {exiting_level}, ID {exiting_scope_id}")
-            if is_function_scope:
-                if self.current_level != exiting_level:
-                    # This might happen if enter/exit calls are mismatched
-                    print(f"Warning: Exiting function scope level mismatch. Current: {self.current_level}, Exited: {exiting_level}")
-                self.current_level = self.scope_stack[-1][0] # Restore level from parent scope
-
+            if self.current_level != exiting_level:
+                # This might happen if enter/exit calls are mismatched
+                print(f"Warning: Exiting function scope level mismatch. Current: {self.current_level}, Exited: {exiting_level}")
+            self.current_level = self.scope_stack[-1][0] # Restore level from parent scope
             self.current_scope_id = self.scope_stack[-1][1]
         else:
             raise Exception("Cannot exit global scope")
@@ -78,28 +98,85 @@ class SemanticAnalyzer:
         self.scope_stack[-1] = (level, scope_id, current_offset + type_size)
         return current_offset
 
-    def _ensure_basic_type(self, type_name_upper):
-        """Ensures a basic type exists in TYPEL and returns its index."""
-        for i, type_entry in enumerate(self.typel):
-            if type_entry.get('KIND') == 'basic' and type_entry.get('NAME') == type_name_upper:
-                return i
-        self.typel.append({'KIND': 'basic', 'NAME': type_name_upper})
-        return len(self.typel) - 1
+    def _add_array_type_to_typel(self, element_type_ptr, lower_bound, upper_bound):
+        if not (0 <= element_type_ptr < len(self.typel)):
+            raise ValueError(f"Invalid element_type_ptr {element_type_ptr} for array.")
+        
+        element_type_info = self.typel[element_type_ptr]
+        element_size = element_type_info.get('SIZE')
+        if element_size is None:
+            raise ValueError(f"Element type {self.get_type_name_from_ptr(element_type_ptr)} for array has no defined size.")
 
-    def _add_array_type_to_typel(self, element_type_ptr, lower_bound, upper_bound, size):
-        """Adds an array type to AINFL and TYPEL."""
+        num_elements = upper_bound - lower_bound + 1
+        if num_elements <= 0:
+            raise ValueError(f"Array must have a positive number of elements. Bounds: {lower_bound}..{upper_bound}")
+        
+        array_total_size = num_elements * element_size
+
+        # Optional: Check if an identical array type (same element type, bounds, and thus size) already exists in AINFL/TYPEL
+        for i, typel_entry in enumerate(self.typel):
+            if typel_entry.get('KIND') == 'array' and typel_entry.get('SIZE') == array_total_size:
+                ainfl_ptr_candidate = typel_entry.get('AINFL_PTR')
+                if 0 <= ainfl_ptr_candidate < len(self.ainfl):
+                    existing_ainfl = self.ainfl[ainfl_ptr_candidate]
+                    if (existing_ainfl.get('ELEMENT_TYPE_PTR') == element_type_ptr and
+                        existing_ainfl.get('LOWER_BOUND') == lower_bound and
+                        existing_ainfl.get('UPPER_BOUND') == upper_bound and
+                        existing_ainfl.get('NUM_ELEMENTS') == num_elements and 
+                        existing_ainfl.get('ELEMENT_SIZE') == element_size and
+                        existing_ainfl.get('TOTAL_SIZE') == array_total_size): # Also check total size in AINFL
+                        return i # Return existing TYPEL index
+
         ainfl_entry = {
             'ELEMENT_TYPE_PTR': element_type_ptr,
             'LOWER_BOUND': lower_bound,
             'UPPER_BOUND': upper_bound,
-            'SIZE': size 
+            'NUM_ELEMENTS': num_elements,
+            'ELEMENT_SIZE': element_size,
+            'TOTAL_SIZE': array_total_size # Store total size directly in AINFL
         }
         self.ainfl.append(ainfl_entry)
         ainfl_ptr = len(self.ainfl) - 1
 
-        typel_entry = {'KIND': 'array', 'AINFL_PTR': ainfl_ptr}
+        typel_entry = {'KIND': 'array', 'AINFL_PTR': ainfl_ptr, 'SIZE': array_total_size}
         self.typel.append(typel_entry)
         return len(self.typel) - 1
+
+    def _resolve_type_ast_node_to_ptr(self, type_ast_node):
+        """
+        Resolves a type AST node (from parser) to a TYPEL pointer.
+        Handles basic type names (strings) and array_type tuples.
+        """
+        if isinstance(type_ast_node, str): # e.g. 'INTEGER'
+            return self._resolve_type_name_to_ptr(type_ast_node) # Existing method for name resolution
+        elif isinstance(type_ast_node, tuple) and type_ast_node[0] == 'array_type':
+            # type_ast_node is ('array_type', low_bound_node, high_bound_node, base_type_ast_node_for_element)
+            low_bound_node = type_ast_node[1]
+            high_bound_node = type_ast_node[2]
+            base_type_ast_node_for_element = type_ast_node[3]
+
+            if not (isinstance(low_bound_node, tuple) and low_bound_node[0] == 'NUMBER' and
+                    isinstance(high_bound_node, tuple) and high_bound_node[0] == 'NUMBER'):
+                raise ValueError(f"Array bounds must be number literals. Got {low_bound_node}, {high_bound_node}")
+            
+            lower_bound = low_bound_node[1] # e.g., 1 from ('NUMBER', 1)
+            upper_bound = high_bound_node[1] # e.g., 5 from ('NUMBER', 5)
+
+            if not isinstance(lower_bound, int) or not isinstance(upper_bound, int):
+                raise ValueError(f"Array bounds must be integers. Got {lower_bound}, {upper_bound}")
+            if lower_bound > upper_bound:
+                raise ValueError(f"Array lower bound {lower_bound} cannot be greater than upper bound {upper_bound}.")
+
+            # Recursively resolve the element's type AST node to get its type_ptr
+            element_type_ptr = self._resolve_type_ast_node_to_ptr(base_type_ast_node_for_element)
+            
+            # num_elements = upper_bound - lower_bound + 1 # Calculated in _add_array_type_to_typel
+
+            # Optional: Check if an identical array type already exists in TYPEL to avoid duplicates
+            # This check is now more robustly handled within _add_array_type_to_typel
+            return self._add_array_type_to_typel(element_type_ptr, lower_bound, upper_bound)
+        else:
+            raise ValueError(f"Unsupported type AST node structure for resolution: {type_ast_node}")
 
     def _add_constant_to_consl(self, value, type_ptr):
         """Adds a constant to CONSL and returns its index."""
@@ -136,148 +213,270 @@ class SemanticAnalyzer:
 
 
     def declare_symbol(self, name, category, type_name_or_struct, details=None):
-        """
-        Declare a symbol in SYNBL.
-        name: identifier name
-        category: 'v'(variable), 'c'(constant), 't'(type), 'f'(function/procedure), 
-                  'p_val'(param by value), 'p_ref'(param by reference)
-        type_name_or_struct: For basic types, a string like "INTEGER". 
-                             For user-defined types, the name of the type.
-                             For arrays, a structure describing the array.
-                             For functions, the return type name.
-        details: Dict for extra info (e.g., const value, func params, array bounds)
-        """
-        current_level, current_scope_id, _ = self.scope_stack[-1]
+        current_level, current_scope_id, current_next_offset = self.scope_stack[-1]
 
-        # Check for redefinition in the same name, level, and exact scope_id
         for entry in self.synbl:
             if entry['NAME'] == name and entry['LEVEL'] == current_level and entry['SCOPE_ID'] == current_scope_id:
                 raise ValueError(f"Symbol '{name}' already declared in scope (L{current_level}, S{current_scope_id})")
 
         type_ptr = -1
-        addr_ptr = None # Can be int (index) or dict like {'level': l, 'offset': o}
+        var_size = 0 # Size of this specific variable/constant/type
 
-        # Determine TYPE_PTR
-        if category in ['v', 'c', 'p_val', 'p_ref'] or (category == 'f' and type_name_or_struct is not None): # Functions can be procedures (None type)
-            if isinstance(type_name_or_struct, str): # Basic type or named type
-                # Is it a basic type?
-                type_name_upper = type_name_or_struct.upper()
-                is_basic = any(t.get('NAME') == type_name_upper and t.get('KIND') == 'basic' for t in self.typel)
-                if is_basic:
-                    type_ptr = self._ensure_basic_type(type_name_upper)
-                else: # User-defined type name, look it up
-                    type_symbol = self.lookup_symbol(type_name_or_struct, category_filter='t')
-                    if not type_symbol:
-                        raise ValueError(f"Type '{type_name_or_struct}' not declared.")
-                    type_ptr = type_symbol['TYPE_PTR'] # The type_symbol itself points to a TYPEL entry
-            elif isinstance(type_name_or_struct, dict) and type_name_or_struct.get('kind') == 'array':
-                # e.g. {'kind': 'array', 'element_type': 'INTEGER', 'lower': 1, 'upper': 5}
-                el_type_name = type_name_or_struct['element_type']
-                el_type_ptr = self._resolve_type_name_to_ptr(el_type_name)
-                # TODO: Calculate size properly
-                size = type_name_or_struct['upper'] - type_name_or_struct['lower'] + 1
-                type_ptr = self._add_array_type_to_typel(
-                    el_type_ptr, 
-                    type_name_or_struct['lower'], 
-                    type_name_or_struct['upper'], 
-                    size
-                )
+        if category in ['v', 'c', 'p_val', 'p_ref'] or \
+           (category == 'f' and type_name_or_struct is not None):
+            if isinstance(type_name_or_struct, str):
+                type_ptr = self._resolve_type_name_to_ptr(type_name_or_struct)
+            elif isinstance(type_name_or_struct, int): 
+                if 0 <= type_name_or_struct < len(self.typel):
+                    type_ptr = type_name_or_struct
+                else:
+                    raise ValueError(f"Invalid type_ptr {type_name_or_struct} passed for '{name}'.")
             else:
-                raise ValueError(f"Unsupported type structure for '{name}': {type_name_or_struct}")
-        elif category == 't': # Type declaration itself
-            # type_name_or_struct is the definition of the type being declared
-            # e.g. VAR arr : ARRAY_DEF; -> type_name_or_struct is ARRAY_DEF
-            # TYPE arr = ARRAY_DEF; -> here type_name_or_struct is ARRAY_DEF
-            if isinstance(type_name_or_struct, str): # Alias to an existing type
-                 type_symbol = self.lookup_symbol(type_name_or_struct, category_filter='t')
-                 if not type_symbol: # Or basic type
-                     type_ptr = self._resolve_type_name_to_ptr(type_name_or_struct)
-                 else:
-                    type_ptr = type_symbol['TYPE_PTR']
-            elif isinstance(type_name_or_struct, dict) and type_name_or_struct.get('kind') == 'array':
-                el_type_name = type_name_or_struct['element_type']
-                el_type_ptr = self._resolve_type_name_to_ptr(el_type_name)
-                size = type_name_or_struct['upper'] - type_name_or_struct['lower'] + 1
-                type_ptr = self._add_array_type_to_typel(
-                    el_type_ptr, 
-                    type_name_or_struct['lower'], 
-                    type_name_or_struct['upper'], 
-                    size
-                )
-            else:
-                 raise ValueError(f"Invalid type definition for type '{name}'")
-
-
-        # Determine ADDR_PTR
-        addr_ptr = None # Default
-
-        if category == 'p_val' or category == 'p_ref':
-            if details and 'param_ordinal' in details:
-                # param_ordinal is 0-indexed (0 for 1st param, 1 for 2nd, etc.)
-                # Parameters start at PARAMS_BASE_OFFSET.
-                param_offset = PARAMS_BASE_OFFSET + details['param_ordinal'] 
-                addr_ptr = {'level': current_level, 'offset': param_offset}
-            else:
-                raise ValueError(f"Parameter '{name}' is missing 'param_ordinal' in details for offset calculation.")
+                raise ValueError(f"Unsupported type information for '{name}' (category '{category}'): {type_name_or_struct}. Expected type name string or type_ptr int.")
+            
+            if 0 <= type_ptr < len(self.typel):
+                var_size = self.typel[type_ptr].get('SIZE', 0) # Get size from TYPEL
+            elif category == 'c' and details and 'value' in details: # For constants, size might depend on literal type if not explicitly typed
+                if isinstance(details['value'], int): var_size = self.type_sizes['INTEGER']
+                elif isinstance(details['value'], float): var_size = self.type_sizes['REAL']
+                elif isinstance(details['value'], bool): var_size = self.type_sizes['BOOLEAN']
+                elif isinstance(details['value'], str) and len(details['value']) == 1 : var_size = self.type_sizes['CHAR']
+                # String literals would need more complex size handling if stored directly
         
-        elif category == 'v': # Local or global variables
-            # For global variables (current_level == 0), offsets start from 0 
-            # (as initialized in scope_stack for global scope).
-            # For local variables (current_level > 0), offsets start from 
-            # PARAMS_BASE_OFFSET + param_count_for_this_function, 
-            # which should have been set as the initial 'next_offset_for_scope' 
-            # when entering the function's scope.
+        elif category == 't': # Actual Type definition (e.g. type MyArr = array...)
+            type_ptr = self._resolve_type_ast_node_to_ptr(type_name_or_struct)
+            if 0 <= type_ptr < len(self.typel): # The "size" of a type definition itself is its defined size
+                var_size = self.typel[type_ptr].get('SIZE', 0)
+        elif category == 'program_name' or (category == 'f' and type_name_or_struct is None): # Procedure
+            type_ptr = -1 
+            var_size = 0 # No direct data size for program name or procedure symbol itself
+        else:
+            raise ValueError(f"Unhandled category '{category}' or type_name_or_struct '{type_name_or_struct}' combination for type resolution in declare_symbol for '{name}'.")
+
+        # ADDR_PTR calculation (offset within the current scope/activation record)
+        addr_ptr_value = None # Default for symbols that don't have a direct memory offset (like type names, program name)
+        
+        if category in ['v', 'p_val', 'p_ref']: # Variables and parameters get a (level, offset)
+            # current_next_offset is the starting offset for this symbol in the current scope
+            # current_level is the static nesting level
+            addr_ptr_value = (current_level, current_next_offset) 
             
-            size_of_type = self._get_type_size(type_ptr)
-            offset = self._get_current_offset_and_increment(size_of_type)
-            addr_ptr = {'level': current_level, 'offset': offset}
+            new_next_offset_for_scope = current_next_offset + var_size # Calculate the next available offset
             
-        elif category == 'c':
-            if details is None or 'value' not in details:
-                raise ValueError(f"Constant '{name}' declared without a value.")
-            const_val = details['value']
-            # Ensure type_ptr is resolved for the constant
-            if type_ptr == -1: # If not resolved during general type processing
-                if isinstance(type_name_or_struct, str):
-                    type_ptr = self._resolve_type_name_to_ptr(type_name_or_struct)
-                else: # Fallback or error if type cannot be resolved for constant
-                    raise ValueError(f"Cannot determine type for constant '{name}'.")
-            addr_ptr = self._add_constant_to_consl(const_val, type_ptr)
+            # Update the current scope's next available offset on the stack
+            self.scope_stack[-1] = (current_level, current_scope_id, new_next_offset_for_scope)
+        elif category == 'c': # Constants might point to CONSL or have a value directly
+            if details and 'CONSL_PTR' in details:
+                addr_ptr_value = details['CONSL_PTR'] # Or some other representation
+            # else, addr_ptr_value remains None if constant value is embedded or not stored with an "address"
+        # For 't' (type definitions), 'program_name', 'f' (functions/procedures themselves),
+        # ADDR_PTR might be None or point to TYPEL/PFINFL.
+        # For now, addr_ptr_value remains None if not 'v', 'p_val', or 'p_ref' unless specified (e.g. for constants).
 
-        elif category == 'f': # Function or Procedure
-            # Procedures might have type_name_or_struct as None
-            return_type_ptr = -1
-            if type_name_or_struct: # If it's a function with a return type
-                return_type_ptr = self._resolve_type_name_to_ptr(str(type_name_or_struct))
 
-            param_count = len(details.get('params', [])) if details else 0
-            # param_synbl_indices would be filled as params are declared in the function's scope
-            pfinfl_entry = {
-                'LEVEL': current_level, # Level of function definition
-                'PARAM_COUNT': param_count,
-                'PARAM_SYNBL_INDICES': [], # To be filled later
-                'ENTRY_LABEL': f"FUNC_{name.upper()}", # Placeholder
-                'RETURN_TYPE_PTR': return_type_ptr
-            }
-            self.pfinfl.append(pfinfl_entry)
-            addr_ptr = len(self.pfinfl) - 1
-        elif category == 't':
-            addr_ptr = None # Type declarations don't have a runtime address in this sense
-                           # Their 'address' is their definition in TYPEL via TYPE_PTR
-
-        new_symbol = {
+        synbl_entry = {
             'NAME': name,
-            'TYPE_PTR': type_ptr,
             'CAT': category,
-            'ADDR_PTR': addr_ptr,
+            'TYPE_PTR': type_ptr,
             'LEVEL': current_level,
             'SCOPE_ID': current_scope_id,
-            'INITIALIZED': False,
-            'DETAILS': details if details else {} # Store original details like param names for functions
+            'ADDR_PTR': addr_ptr_value, # Storing (level, offset) for vars/params, or other info
+            'SIZE': var_size, 
+            'INITIALIZED': False 
         }
-        self.synbl.append(new_symbol)
-        # print(f"Declared: {new_symbol}")
-        return new_symbol
+        self.synbl.append(synbl_entry)
+        # print(f"Declared: {new_symbol}") # This was 'new_symbol', should be 'synbl_entry' if uncommented
+        return synbl_entry
+
+    def _add_array_type_to_typel(self, element_type_ptr, lower_bound, upper_bound):
+        if not (0 <= element_type_ptr < len(self.typel)):
+            raise ValueError(f"Invalid element_type_ptr {element_type_ptr} for array.")
+        
+        element_type_info = self.typel[element_type_ptr]
+        element_size = element_type_info.get('SIZE')
+        if element_size is None:
+            raise ValueError(f"Element type {self.get_type_name_from_ptr(element_type_ptr)} for array has no defined size.")
+
+        num_elements = upper_bound - lower_bound + 1
+        if num_elements <= 0:
+            raise ValueError(f"Array must have a positive number of elements. Bounds: {lower_bound}..{upper_bound}")
+        
+        array_total_size = num_elements * element_size
+
+        # Optional: Check if an identical array type (same element type, bounds, and thus size) already exists in AINFL/TYPEL
+        for i, typel_entry in enumerate(self.typel):
+            if typel_entry.get('KIND') == 'array' and typel_entry.get('SIZE') == array_total_size:
+                ainfl_ptr_candidate = typel_entry.get('AINFL_PTR')
+                if 0 <= ainfl_ptr_candidate < len(self.ainfl):
+                    existing_ainfl = self.ainfl[ainfl_ptr_candidate]
+                    if (existing_ainfl.get('ELEMENT_TYPE_PTR') == element_type_ptr and
+                        existing_ainfl.get('LOWER_BOUND') == lower_bound and
+                        existing_ainfl.get('UPPER_BOUND') == upper_bound and
+                        existing_ainfl.get('NUM_ELEMENTS') == num_elements and 
+                        existing_ainfl.get('ELEMENT_SIZE') == element_size and
+                        existing_ainfl.get('TOTAL_SIZE') == array_total_size): # Also check total size in AINFL
+                        return i # Return existing TYPEL index
+
+        ainfl_entry = {
+            'ELEMENT_TYPE_PTR': element_type_ptr,
+            'LOWER_BOUND': lower_bound,
+            'UPPER_BOUND': upper_bound,
+            'NUM_ELEMENTS': num_elements,
+            'ELEMENT_SIZE': element_size,
+            'TOTAL_SIZE': array_total_size # Store total size directly in AINFL
+        }
+        self.ainfl.append(ainfl_entry)
+        ainfl_ptr = len(self.ainfl) - 1
+
+        typel_entry = {'KIND': 'array', 'AINFL_PTR': ainfl_ptr, 'SIZE': array_total_size}
+        self.typel.append(typel_entry)
+        return len(self.typel) - 1
+
+    def _resolve_type_ast_node_to_ptr(self, type_ast_node):
+        """
+        Resolves a type AST node (from parser) to a TYPEL pointer.
+        Handles basic type names (strings) and array_type tuples.
+        """
+        if isinstance(type_ast_node, str): # e.g. 'INTEGER'
+            return self._resolve_type_name_to_ptr(type_ast_node) # Existing method for name resolution
+        elif isinstance(type_ast_node, tuple) and type_ast_node[0] == 'array_type':
+            # type_ast_node is ('array_type', low_bound_node, high_bound_node, base_type_ast_node_for_element)
+            low_bound_node = type_ast_node[1]
+            high_bound_node = type_ast_node[2]
+            base_type_ast_node_for_element = type_ast_node[3]
+
+            if not (isinstance(low_bound_node, tuple) and low_bound_node[0] == 'NUMBER' and
+                    isinstance(high_bound_node, tuple) and high_bound_node[0] == 'NUMBER'):
+                raise ValueError(f"Array bounds must be number literals. Got {low_bound_node}, {high_bound_node}")
+            
+            lower_bound = low_bound_node[1] # e.g., 1 from ('NUMBER', 1)
+            upper_bound = high_bound_node[1] # e.g., 5 from ('NUMBER', 5)
+
+            if not isinstance(lower_bound, int) or not isinstance(upper_bound, int):
+                raise ValueError(f"Array bounds must be integers. Got {lower_bound}, {upper_bound}")
+            if lower_bound > upper_bound:
+                raise ValueError(f"Array lower bound {lower_bound} cannot be greater than upper bound {upper_bound}.")
+
+            # Recursively resolve the element's type AST node to get its type_ptr
+            element_type_ptr = self._resolve_type_ast_node_to_ptr(base_type_ast_node_for_element)
+            
+            # num_elements = upper_bound - lower_bound + 1 # Calculated in _add_array_type_to_typel
+
+            # Optional: Check if an identical array type already exists in TYPEL to avoid duplicates
+            # This check is now more robustly handled within _add_array_type_to_typel
+            return self._add_array_type_to_typel(element_type_ptr, lower_bound, upper_bound)
+        else:
+            raise ValueError(f"Unsupported type AST node structure for resolution: {type_ast_node}")
+
+    def _add_constant_to_consl(self, value, type_ptr):
+        """Adds a constant to CONSL and returns its index."""
+        # Could add check for existing identical constant to reuse
+        self.consl.append({'VALUE': value, 'TYPE_PTR': type_ptr})
+        return len(self.consl) - 1
+
+    def _get_type_size(self, type_ptr):
+        """
+        Returns the size of a type in memory units (e.g., words).
+        Simplified: assumes basic types are size 1. Arrays/complex types might need more logic.
+        """
+        if type_ptr < 0 or type_ptr >= len(self.typel):
+            return 1 # Default size for unknown or unresolved types
+
+        type_info = self.typel[type_ptr]
+        kind = type_info.get('KIND')
+
+        if kind == 'basic':
+            # For simplicity, all basic types take 1 memory unit.
+            # Refine if different basic types have different sizes (e.g., REAL vs INTEGER).
+            return 1
+        elif kind == 'array':
+            # This is complex: could be size of descriptor or full array.
+            # For stack allocation of variable itself (not the array data), often 1 (pointer/descriptor).
+            # If full array is on stack, calculate from AINFL.
+            # ainfl_entry = self.ainfl[type_info['AINFL_PTR']]
+            # element_size = self._get_type_size(ainfl_entry['ELEMENT_TYPE_PTR'])
+            # num_elements = ainfl_entry['SIZE']
+            # return element_size * num_elements
+            return 1 # Simplified: size of an array variable on stack (e.g. pointer)
+        # Add other kinds (records, etc.)
+        return 1 # Default for other complex types
+
+
+    def declare_symbol(self, name, category, type_name_or_struct, details=None):
+        current_level, current_scope_id, current_next_offset = self.scope_stack[-1]
+
+        for entry in self.synbl:
+            if entry['NAME'] == name and entry['LEVEL'] == current_level and entry['SCOPE_ID'] == current_scope_id:
+                raise ValueError(f"Symbol '{name}' already declared in scope (L{current_level}, S{current_scope_id})")
+
+        type_ptr = -1
+        var_size = 0 # Size of this specific variable/constant/type
+
+        if category in ['v', 'c', 'p_val', 'p_ref'] or \
+           (category == 'f' and type_name_or_struct is not None):
+            if isinstance(type_name_or_struct, str):
+                type_ptr = self._resolve_type_name_to_ptr(type_name_or_struct)
+            elif isinstance(type_name_or_struct, int): 
+                if 0 <= type_name_or_struct < len(self.typel):
+                    type_ptr = type_name_or_struct
+                else:
+                    raise ValueError(f"Invalid type_ptr {type_name_or_struct} passed for '{name}'.")
+            else:
+                raise ValueError(f"Unsupported type information for '{name}' (category '{category}'): {type_name_or_struct}. Expected type name string or type_ptr int.")
+            
+            if 0 <= type_ptr < len(self.typel):
+                var_size = self.typel[type_ptr].get('SIZE', 0) # Get size from TYPEL
+            elif category == 'c' and details and 'value' in details: # For constants, size might depend on literal type if not explicitly typed
+                if isinstance(details['value'], int): var_size = self.type_sizes['INTEGER']
+                elif isinstance(details['value'], float): var_size = self.type_sizes['REAL']
+                elif isinstance(details['value'], bool): var_size = self.type_sizes['BOOLEAN']
+                elif isinstance(details['value'], str) and len(details['value']) == 1 : var_size = self.type_sizes['CHAR']
+                # String literals would need more complex size handling if stored directly
+        
+        elif category == 't': # Actual Type definition (e.g. type MyArr = array...)
+            type_ptr = self._resolve_type_ast_node_to_ptr(type_name_or_struct)
+            if 0 <= type_ptr < len(self.typel): # The "size" of a type definition itself is its defined size
+                var_size = self.typel[type_ptr].get('SIZE', 0)
+        elif category == 'program_name' or (category == 'f' and type_name_or_struct is None): # Procedure
+            type_ptr = -1 
+            var_size = 0 # No direct data size for program name or procedure symbol itself
+        else:
+            raise ValueError(f"Unhandled category '{category}' or type_name_or_struct '{type_name_or_struct}' combination for type resolution in declare_symbol for '{name}'.")
+
+        # ADDR_PTR calculation (offset within the current scope/activation record)
+        addr_ptr_value = None # Default for symbols that don't have a direct memory offset (like type names, program name)
+        
+        if category in ['v', 'p_val', 'p_ref']: # Variables and parameters get a (level, offset)
+            # current_next_offset is the starting offset for this symbol in the current scope
+            # current_level is the static nesting level
+            addr_ptr_value = (current_level, current_next_offset) 
+            
+            new_next_offset_for_scope = current_next_offset + var_size # Calculate the next available offset
+            
+            # Update the current scope's next available offset on the stack
+            self.scope_stack[-1] = (current_level, current_scope_id, new_next_offset_for_scope)
+        elif category == 'c': # Constants might point to CONSL or have a value directly
+            if details and 'CONSL_PTR' in details:
+                addr_ptr_value = details['CONSL_PTR'] # Or some other representation
+            # else, addr_ptr_value remains None if constant value is embedded or not stored with an "address"
+        # For 't' (type definitions), 'program_name', 'f' (functions/procedures themselves),
+        # ADDR_PTR might be None or point to TYPEL/PFINFL.
+        # For now, addr_ptr_value remains None if not 'v', 'p_val', or 'p_ref' unless specified (e.g. for constants).
+
+
+        synbl_entry = {
+            'NAME': name,
+            'CAT': category,
+            'TYPE_PTR': type_ptr,
+            'LEVEL': current_level,
+            'SCOPE_ID': current_scope_id,
+            'ADDR_PTR': addr_ptr_value, # Storing (level, offset) for vars/params, or other info
+            'SIZE': var_size, 
+            'INITIALIZED': False 
+        }
+        self.synbl.append(synbl_entry)
+        # print(f"Declared: {new_symbol}") # This was 'new_symbol', should be 'synbl_entry' if uncommented
+        return synbl_entry
 
     def _resolve_type_name_to_ptr(self, type_name):
         """Resolves a type name (string) to a TYPEL pointer. Handles basic and declared types."""
@@ -291,7 +490,6 @@ class SemanticAnalyzer:
         if type_symbol:
             return type_symbol['TYPE_PTR']
         raise ValueError(f"Type '{type_name}' not found.")
-
 
     def lookup_symbol(self, name, category_filter=None):
         """Look up a symbol, respecting scope and level."""
@@ -317,11 +515,13 @@ class SemanticAnalyzer:
 
     def set_initialized(self, var_name):
         """Mark a variable as initialized."""
-        var_symbol = self.lookup_symbol(var_name, category_filter='v') # Or 'p_val', 'p_ref'
-        if not var_symbol: # Also check params
+        var_symbol = self.lookup_symbol(var_name, category_filter='v') 
+        if not var_symbol: 
             var_symbol = self.lookup_symbol(var_name, category_filter='p_val')
         if not var_symbol:
             var_symbol = self.lookup_symbol(var_name, category_filter='p_ref')
+        if not var_symbol: # Add check for category 't'
+            var_symbol = self.lookup_symbol(var_name, category_filter='t')
 
         if var_symbol:
             # Since synbl entries are dicts, directly modify (if not copying entries)
@@ -367,16 +567,39 @@ class SemanticAnalyzer:
         node_type = ast[0]
 
         if node_type == 'program':
-            # ast: ('program', prog_name, var_declarations_node, block_node)
-            # block_node: ('block', statements_list) or similar for main
-            # var_declarations_node: ('var_declarations', list_of_decl_tuples)
-            # decl_tuple: (id_list, type_node)
-            prog_name_token = ast[1] 
-            self.declare_symbol(prog_name_token, 'program_name', None) # Special category
+            prog_name_node = ast[1] # This is what the parser provides for the program name
+            
+            actual_prog_name_str = ""
+            if isinstance(prog_name_node, str): # If parser gives a direct string
+                actual_prog_name_str = prog_name_node
+            elif hasattr(prog_name_node, 'value'): # If it's a PLY LexToken or similar object
+                actual_prog_name_str = prog_name_node.value
+            elif isinstance(prog_name_node, tuple) and len(prog_name_node) > 0: # If it's like ('ID', 'ProgName')
+                actual_prog_name_str = prog_name_node[0] # Or prog_name_node[1] depending on your AST
+                # Check the actual structure of prog_name_node from your parser
+                # For instance, if it's ('PROG_ID_TOKEN_TYPE', 'ActualName'), then ast[1][1] might be it.
+                # Let's assume for now your parser puts the string name directly or in .value
+                # If it's a simple string from the parser, this 'if/elif' is overkill.
+                # For example, if parser gives ('program', 'MyProgram', ...), then ast[1] is 'MyProgram'
+                # If parser gives ('program', ('ID', 'MyProgram'), ...), then ast[1][1] is 'MyProgram'
+
+            # Ensure actual_prog_name_str is a string before calling declare_symbol
+            if not isinstance(actual_prog_name_str, str) or not actual_prog_name_str:
+                # Handle error: program name couldn't be extracted as a string
+                # This might happen if ast[1] is not what's expected.
+                # For now, let's assume ast[1] IS the string name if the above doesn't fit.
+                if isinstance(ast[1], str): # Defaulting to ast[1] if it's a string
+                    actual_prog_name_str = ast[1]
+                else:
+                    # This is a fallback, ideally you know the structure from your parser
+                    print(f"Warning: Program name token structure not fully handled: {ast[1]}. Attempting to use raw value.")
+                    actual_prog_name_str = str(ast[1]) # Fallback, might not be ideal
+
+            self.declare_symbol(actual_prog_name_str, 'program_name', None)
 
             var_decls_node = ast[2] # Assuming structure ('var_declarations', decls_list) or None
             if var_decls_node and var_decls_node[0] == 'var_declarations':
-                self.process_declarations(var_decls_node[1], 'v') # 'v' for variable
+                self.process_declarations(var_decls_node) # Corrected: Removed the extra 'v' argument
 
             # Process function/procedure declarations if they are part of AST structure here
             # For now, assuming they might be mixed with statements or in a specific section
@@ -388,25 +611,24 @@ class SemanticAnalyzer:
                 self.analyze_statements(ast[3])
 
 
-    def process_declarations(self, decls_list, category_default):
-        """
-        Processes a list of declarations (variables, constants, types).
-        decls_list from parser seems to be: [('var', ['id_str'], 'type_str'), ...]
-        """
-        if not decls_list: return
+    def process_declarations(self, decls_node):
+        if decls_node is None or decls_node[0] != 'var_declarations':
+            return # No declarations or not a var_declarations node
 
-        # print(f"DEBUG: Processing declarations list: {decls_list}")
-
+        decls_list = decls_node[1]
+        
         for decl_item in decls_list:
-            # AST structure from parser for var decls: ('var', ['identifier_string'], 'type_string')
-            if decl_item[0] == 'var': # CORRECTED: Match AST node type
-                
-                # id_list_from_ast is like ['counter'] or ['id1', 'id2'] if parser supports multiple ids per line this way
+            # AST structure from parser for var decls: ('var', ['identifier_string'], type_ast_node)
+            # type_ast_node can be 'integer' or ('array_type', ...)
+            if decl_item[0] == 'var': 
                 id_list_from_ast = decl_item[1] 
-                type_name_str = decl_item[2] # This is directly the type string like 'integer'
+                type_ast_node = decl_item[2] 
 
-                # print(f"DEBUG: Declaration item: {decl_item}, Extracted id_list: {id_list_from_ast}, Extracted type_name: {type_name_str}")
+                actual_type_ptr = self._resolve_type_ast_node_to_ptr(type_ast_node)
 
+                # All variables declared in a 'var' block will have category 'v'
+                category_for_symbol = 'v' 
+                
                 ids_to_declare = []
                 if isinstance(id_list_from_ast, list):
                     for id_name in id_list_from_ast:
@@ -425,9 +647,8 @@ class SemanticAnalyzer:
                 # print(f"DEBUG: IDs to declare for type {type_name_str}: {ids_to_declare}")
 
                 for var_name in ids_to_declare:
-                    # print(f"DEBUG: Declaring symbol: Name='{var_name}', Cat='{category_default}', Type='{type_name_str}'")
                     try:
-                        self.declare_symbol(var_name, category_default, type_name_str)
+                        self.declare_symbol(var_name, category_for_symbol, actual_type_ptr) # Use 'v' for all vars
                     except Exception as e:
                         print(f"ERROR during declare_symbol for '{var_name}': {e}")
             else:
@@ -446,29 +667,55 @@ class SemanticAnalyzer:
         # print(f"DEBUG: Analyzing statement node: {stmt_node}")
 
         if node_type == 'assign':
-            # AST node is actually: ('assign', var_name_string, expr_node)
-            # Example: ('assign', 'counter', '10')
+            # AST node: ('assign', target_node, expr_node)
+            # target_node from parser: ('ID', var_name_str) or ('array_access', array_name_str, index_expr_node)
             
-            # Print the part of the AST you expect to contain the variable name
-            # print(f"DEBUG: Assignment - stmt_node[1]: {stmt_node[1]}")
-            # The following 'if' and print statement for stmt_node[1][1] are based on a wrong assumption
-            # if isinstance(stmt_node[1], tuple) and len(stmt_node[1]) > 1:
-            #      print(f"DEBUG: Assignment - stmt_node[1][1] (expected var_name or token): {stmt_node[1][1]}")
-
-            var_name = stmt_node[1] # CORRECTED: Directly use stmt_node[1]
+            target_node = stmt_node[1]
             expr_node = stmt_node[2]
 
-            # print(f"DEBUG: Assignment - Extracted var_name: '{var_name}', Type: {type(var_name)}") # Crucial print
+            target_actual_name = None # For set_initialized
+            target_final_type_ptr = -1
 
-            var_symbol = self.lookup_symbol(var_name)
-            if not var_symbol:
-                raise ValueError(f"Variable '{var_name}' not declared before assignment.")
-            if var_symbol['CAT'] not in ['v', 'p_val', 'p_ref']: # Cannot assign to const, type, func name
-                raise ValueError(f"Cannot assign to '{var_name}' of category '{var_symbol['CAT']}'.")
+            if target_node[0] == 'ID':
+                var_name_str = target_node[1]
+                target_actual_name = var_name_str
+                var_symbol = self.lookup_symbol(var_name_str)
+                if not var_symbol:
+                    raise ValueError(f"Variable '{var_name_str}' not declared before assignment.")
+                if var_symbol['CAT'] not in ['v', 'p_val', 'p_ref']:
+                    raise ValueError(f"Cannot assign to '{var_name_str}' of category '{var_symbol['CAT']}'.")
+                target_final_type_ptr = var_symbol['TYPE_PTR']
+            elif target_node[0] == 'array_access':
+                array_name_str = target_node[1]
+                index_expr_node = target_node[2]
+                target_actual_name = array_name_str # Mark the base array as initialized
+
+                array_symbol = self.lookup_symbol(array_name_str)
+                if not array_symbol:
+                    raise ValueError(f"Array '{array_name_str}' not declared before assignment.")
+                # Allow 't' if you are using it for array variables that can be assigned to.
+                if array_symbol['CAT'] not in ['v', 'p_val', 'p_ref', 't']: 
+                    raise ValueError(f"Identifier '{array_name_str}' is not an assignable array (category '{array_symbol['CAT']}').")
+
+                array_type_ptr = array_symbol['TYPE_PTR']
+                if not (0 <= array_type_ptr < len(self.typel)) or self.typel[array_type_ptr].get('KIND') != 'array':
+                    raise ValueError(f"Identifier '{array_name_str}' is not an array type.")
+                
+                ainfl_ptr = self.typel[array_type_ptr]['AINFL_PTR']
+                ainfl_entry = self.ainfl[ainfl_ptr]
+                target_final_type_ptr = ainfl_entry['ELEMENT_TYPE_PTR']
+
+                index_expr_type_ptr = self.get_expression_type_ptr(index_expr_node)
+                int_type_ptr = self._ensure_basic_type('INTEGER')
+                self.check_type_compatibility(int_type_ptr, index_expr_type_ptr, f"array index for '{array_name_str}'")
+            else:
+                raise ValueError(f"Invalid target for assignment: {target_node}")
 
             expr_type_ptr = self.get_expression_type_ptr(expr_node)
-            self.check_type_compatibility(var_symbol['TYPE_PTR'], expr_type_ptr, f"assignment to '{var_name}'")
-            self.set_initialized(var_name)
+            self.check_type_compatibility(target_final_type_ptr, expr_type_ptr, f"assignment to '{target_node[0]}'")
+            
+            if target_actual_name:
+                self.set_initialized(target_actual_name)
 
         elif node_type == 'if_statement':
             # ('if_statement', cond_expr, then_block_node, else_block_node_optional)
@@ -543,84 +790,103 @@ class SemanticAnalyzer:
             return self._ensure_basic_type('BOOLEAN')
 
         # 2. Handle tuple-based AST nodes
-        if not isinstance(expr_node, tuple) or not expr_node: 
-            # This should ideally not be reached if all string/int/bool cases are handled above
-            # or if the only remaining non-tuple is an error.
-            raise ValueError(f"Expression node '{expr_node}' is not a recognized literal, direct ID, or valid AST tuple.")
+        if not isinstance(expr_node, tuple) or not expr_node:
+            # Handle cases where expr_node might already be a type pointer or is invalid
+            # This logic might vary based on your implementation details
+            # For now, assuming if it's not a tuple, it might be an error or already resolved.
+            # The error message implies expr_node *is* a tuple when the error occurs.
+            # So, the main issue is likely in the tuple processing below.
+            pass # Or raise an error if it's an unexpected non-tuple
 
+        # Assuming expr_node is a tuple, e.g., ('REAL_NUMBER', 3.14) or ('+', left, right)
         node_type = expr_node[0]
 
-        if node_type == 'NUMBER': # Literal integer, e.g., ('NUMBER', '10') or ('NUMBER', 10)
-            # val_repr = expr_node[1] # Value is expr_node[1]
-            # No .value needed if val_repr is the direct string or int.
-            # Type is directly INTEGER.
+        if node_type == 'NUMBER':
             return self._ensure_basic_type('INTEGER')
-        elif node_type == 'STRING_LITERAL': # e.g., ('STRING_LITERAL', 'hello')
-            # val_repr = expr_node[1] # String value is expr_node[1]
+        elif node_type == 'REAL_NUMBER':  # <<< इंश्योर दिस केस इज प्रेजेंट एंड करेक्ट
+            return self._ensure_basic_type('REAL')
+        elif node_type == 'CHAR_LITERAL': 
+            return self._ensure_basic_type('CHAR')
+        elif node_type == 'STRING_LITERAL':
             return self._ensure_basic_type('STRING')
-        elif node_type == 'BOOLEAN_LITERAL': # e.g., ('BOOLEAN_LITERAL', 'true') or ('BOOLEAN_LITERAL', True)
-            # val_repr = expr_node[1] # Boolean value is expr_node[1]
+        elif node_type == 'BOOLEAN_LITERAL':
             return self._ensure_basic_type('BOOLEAN')
-        elif node_type == 'ID': # Variable or constant, e.g., ('ID', 'varname')
-            name = expr_node[1] # Direct string name, no .value needed
+        elif node_type == 'ID':
+            # ... (your existing ID handling logic) ...
+            name = expr_node[1]
+            if name.lower() == 'true' or name.lower() == 'false': # Handle true/false if passed as ('ID', 'true')
+                return self._ensure_basic_type('BOOLEAN')
             symbol = self.lookup_symbol(name)
             if not symbol:
                 raise ValueError(f"Identifier '{name}' not declared.")
-            if symbol['CAT'] in ['v', 'p_val', 'p_ref'] and not symbol['INITIALIZED']:
-                print(f"Warning: Variable '{name}' used before explicit assignment (in an expression).")
+            # Example: Mark as initialized if it's a variable being read
+            # if symbol['CAT'] in ['v', 'p_val', 'p_ref'] and not symbol.get('INITIALIZED', False):
+            #     print(f"Warning: Variable '{name}' used before explicit assignment (in an expression).")
+            #     # Optionally, you might not want to mark it initialized here, but rather upon assignment.
             return symbol['TYPE_PTR']
-        
-        # CORRECTED LIST OF OPERATORS:
-        # Ensure this list matches exactly what your parser uses for expr_node[0] for operators
-        elif node_type in ['+', '-', '*', '/',  # Arithmetic (assuming parser uses these symbols)
-                           '<', '>', '=', '<=', '>=', '<>', # Relational (Pascal uses single char for some, e.g. =, <, >)
-                                                            # and two chars for others like <=, >=, <>
-                                                            # Adjust to your parser's output for EQ, NE, LE, GE etc.
-                           'and', 'or', 'not']: # Logical (Pascal uses keywords 'and', 'or', 'not')
-                                                 # Add 'not' if it's a unary op handled here, or separately
+        elif node_type == 'array_access':
+            # expr_node is ('array_access', array_name_str, index_expr_node)
+            array_name_str = expr_node[1]
+            index_expr_node = expr_node[2]
+
+            array_symbol = self.lookup_symbol(array_name_str)
+            if not array_symbol:
+                raise ValueError(f"Array '{array_name_str}' not declared (in expression).")
+            # Allow 't' if you are using it for array variables that can be read from.
+            if array_symbol['CAT'] not in ['v', 'p_val', 'p_ref', 't']: 
+                raise ValueError(f"Identifier '{array_name_str}' is not an array variable (category '{array_symbol['CAT']}').")
             
-            # Handle unary 'not' separately if it has a different AST structure (e.g., ('not', operand))
-            if node_type == 'not' and len(expr_node) == 2: # Example for unary 'not'
-                operand_expr = expr_node[1]
-                operand_type_ptr = self.get_expression_type_ptr(operand_expr)
-                bool_type_ptr = self._ensure_basic_type('BOOLEAN')
-                self.check_type_compatibility(bool_type_ptr, operand_type_ptr, f"operand of {node_type}")
-                return bool_type_ptr
+            # Check if the array (as a whole) has been initialized.
+            # A more granular check would be per-element, which is harder.
+            if not array_symbol.get('INITIALIZED', False):
+                 print(f"Warning: Array '{array_name_str}' may not have been initialized before its element is accessed.")
 
-            # For binary operators:
-            if len(expr_node) < 3: # Should not happen for binary ops
-                raise ValueError(f"Malformed binary operator node: {expr_node}")
+            array_type_ptr = array_symbol['TYPE_PTR']
+            if not (0 <= array_type_ptr < len(self.typel)) or self.typel[array_type_ptr].get('KIND') != 'array':
+                raise ValueError(f"Identifier '{array_name_str}' is not of array type (in expression).")
 
+            ainfl_ptr = self.typel[array_type_ptr]['AINFL_PTR']
+            ainfl_entry = self.ainfl[ainfl_ptr]
+            element_type_ptr = ainfl_entry['ELEMENT_TYPE_PTR']
+
+            index_expr_type_ptr = self.get_expression_type_ptr(index_expr_node)
+            int_type_ptr = self._ensure_basic_type('INTEGER')
+            self.check_type_compatibility(int_type_ptr, index_expr_type_ptr, f"array index for '{array_name_str}' in expression")
+            
+            return element_type_ptr
+        elif node_type in ['+', '-', '*', '/', '<', '>', '=', '<=', '>=', '<>', 'and', 'or']: # Binary operators
+            # ... (your existing logic for binary operators) ...
             left_expr = expr_node[1]
             right_expr = expr_node[2]
             left_type_ptr = self.get_expression_type_ptr(left_expr)
             right_type_ptr = self.get_expression_type_ptr(right_expr)
-
+            # ... (type checking logic for the operation) ...
+            # Example for arithmetic:
             int_type_ptr = self._ensure_basic_type('INTEGER')
-            bool_type_ptr = self._ensure_basic_type('BOOLEAN')
-            # real_type_ptr = self._ensure_basic_type('REAL')
+            real_type_ptr = self._ensure_basic_type('REAL')
+            if node_type in ['+', '-', '*', '/']:
+                if not ((left_type_ptr == int_type_ptr or left_type_ptr == real_type_ptr) and \
+                        (right_type_ptr == int_type_ptr or right_type_ptr == real_type_ptr)):
+                    raise ValueError(f"Arithmetic operation '{node_type}' requires numeric operands.")
+                if left_type_ptr == real_type_ptr or right_type_ptr == real_type_ptr:
+                    return real_type_ptr
+                return int_type_ptr
+            # ... (add logic for relational and logical operators) ...
+            bool_type_ptr = self._ensure_basic_type('BOOLEAN') # Example for relational/logical
+            return bool_type_ptr # Placeholder, replace with actual logic
 
-            if node_type in ['+', '-', '*', '/']: # Arithmetic
-                self.check_type_compatibility(int_type_ptr, left_type_ptr, f"left operand of {node_type}")
-                self.check_type_compatibility(int_type_ptr, right_type_ptr, f"right operand of {node_type}")
-                return int_type_ptr 
-            elif node_type in ['<', '>', '=', '<=', '>=', '<>']: # Relational
-                                                                # Adjust these symbols if your parser uses others like 'EQ', 'NE'
-                if left_type_ptr != right_type_ptr:
-                    left_t_name = self.get_type_name_from_ptr(left_type_ptr)
-                    right_t_name = self.get_type_name_from_ptr(right_type_ptr)
-                    is_numeric_comparison = (left_t_name in ["INTEGER", "REAL"] and right_t_name in ["INTEGER", "REAL"])
-                    # Add string comparison if needed: or (left_t_name == "STRING" and right_t_name == "STRING")
-                    if not is_numeric_comparison: # Add other allowed comparisons here
-                         self.check_type_compatibility(left_t_ptr, right_t_ptr, f"operands of {node_type}")
-                return bool_type_ptr 
-            elif node_type in ['and', 'or']: # Logical
-                self.check_type_compatibility(bool_type_ptr, left_type_ptr, f"left operand of {node_type}")
-                self.check_type_compatibility(bool_type_ptr, right_type_ptr, f"right operand of {node_type}")
-                return bool_type_ptr
-        
-        # Add NOT, function calls, array access etc. here
-        raise ValueError(f"Cannot determine type of expression node: {expr_node}")
+        elif node_type == 'not': # Unary operator
+            # ... (your existing logic for unary not) ...
+            operand_expr = expr_node[1]
+            operand_type_ptr = self.get_expression_type_ptr(operand_expr)
+            bool_type_ptr = self._ensure_basic_type('BOOLEAN')
+            if operand_type_ptr != bool_type_ptr:
+                raise ValueError(f"'not' operator requires a boolean operand, got {self.get_type_name_from_ptr(operand_type_ptr)}.")
+            return bool_type_ptr
+        # ... (other existing elif conditions for other node types) ...
+        else:
+            # This is the fallback that raises the error you're seeing
+            raise ValueError(f"Cannot determine type of expression node: {expr_node}")
 
     def get_symbol_tables_snapshot(self):
         """Returns a snapshot of all internal tables for debugging/output."""

@@ -1,0 +1,21 @@
+program ArrayWhileExample;
+
+var
+  myArray: array[1..5] of Integer;
+  i: Integer;
+
+begin
+  i := 1;
+  while i <= 5 do
+  begin
+    myArray[i] := i * 10;
+    i := i + 1;
+  end;
+
+  i := 1;
+  while i <= 5 do
+  begin
+    WriteLn('Element ', i, ': ', myArray[i]);
+    i := i + 1;
+  end;
+end.
