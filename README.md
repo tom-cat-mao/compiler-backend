@@ -128,9 +128,11 @@ The frontend is built using Vue.js, included via a CDN for simplicity, avoiding 
 ### Pascal Compiler Limitations
 **Note**: The current implementation of the Pascal compiler frontend has specific limitations in the parser that may cause "Invalid program syntax" errors for certain Pascal constructs. These limitations include:
 - **Comments**: The parser does not support "//" style comments. Use (* *) style comments if needed, or avoid comments in test programs.
-- **Operators**: The "div" operator for integer division is not supported. Use "/" with appropriate type handling as a workaround.
+- **Operators**: The "div, mod" operator for integer division is not supported. Use "/" with appropriate type handling as a workaround.
 - **Formatted Output**: Format specifiers in writeln statements (e.g., "average:0:2") are not supported. Simplify output statements to avoid format specifiers.
 - **Complex Writeln Statements**: The parser has limited support for writeln statements with multiple arguments or string concatenation. Use single expressions or basic string literals where possible.
+- **Array Support**: Only support real number and array.
+- **Loop**: Support *while* loop.
 
 We are working on extending the parser to support a broader range of Pascal syntax in future updates.
 
