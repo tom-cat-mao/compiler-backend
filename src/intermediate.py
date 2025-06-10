@@ -43,17 +43,33 @@ class IntermediateCodeGenerator:
             self.generate_statement(stmt)
 
     def generate_statement(self, stmt):
-        """Generate code for a single statement."""
-        if not isinstance(stmt, tuple):
+        if not isinstance(stmt, tuple) or not stmt: # Added check for empty stmt
             # Potentially skip empty statements or handle errors
             return
 
         stmt_type = stmt[0]
         if stmt_type == 'assign':
-            # Rule: v = E  =>  (=, res(E), _, v)
-            var_name, expr = stmt[1], stmt[2]
-            expr_result = self.generate_expression(expr)
-            self.code.append(('=', expr_result, '_', var_name))
+            # AST: ('assign', target_node, expr_node)
+            # target_node from parser: ('ID', var_name_str) or ('array_access', array_name_str, index_expr_node)
+            target_node, expr_node = stmt[1], stmt[2]
+            
+            expr_result = self.generate_expression(expr_node)
+
+            if target_node[0] == 'ID':
+                var_name = target_node[1]
+                self.code.append(('=', expr_result, '_', var_name))
+            elif target_node[0] == 'array_access':
+                # target_node is ('array_access', array_name_str, index_expr_node)
+                array_name = target_node[1]
+                index_expr = target_node[2]
+                index_result = self.generate_expression(index_expr)
+                # Quad: (op, value_to_store, index_val, array_name)
+                # This signifies: array_name[index_val] = value_to_store
+                self.code.append(('[]=', expr_result, index_result, array_name))
+            else:
+                # Should not happen with current parser structure for assignment
+                raise ValueError(f"Unsupported target for assignment: {target_node}")
+
         elif stmt_type == 'if':
             # Assuming (if, cond, _, L_true_target) means "if cond is TRUE, jump to L_true_target"
             #
@@ -161,46 +177,61 @@ class IntermediateCodeGenerator:
 
 
     def generate_expression(self, expr):
-        """Generate code for an expression and return the result (temp variable or value)."""
-        if isinstance(expr, (int, float, bool)): # Direct constants (added float)
+        if isinstance(expr, (int, float, bool)): # Direct constants
             return expr
         elif isinstance(expr, str):
-            # This might be a direct string literal if not wrapped by parser, or a temp var name.
+            # This might be a direct string literal if not wrapped by parser, 
+            # or a temp var name, or an ID name.
+            # The semantic analyzer should ensure IDs are valid.
+            # If it's a known temp or var, it's fine. If it's a string literal for 'write', it's also fine.
             return expr
         elif isinstance(expr, tuple):
             node_type = expr[0]
 
             # Handle specific AST node types for literals and identifiers
-            if node_type == 'NUMBER':       # e.g., ('NUMBER', 10)
+            if node_type == 'NUMBER':           # e.g., ('NUMBER', 123)
                 return expr[1]
-            elif node_type == 'REAL_NUMBER': # e.g., ('REAL_NUMBER', 3.14)
-                return expr[1]
-            elif node_type == 'CHAR_LITERAL': # e.g., ('CHAR_LITERAL', 'a')
+            elif node_type == 'REAL_NUMBER':    # e.g., ('REAL_NUMBER', 3.14)
+                return expr[1] 
+            elif node_type == 'CHAR_LITERAL':   # e.g., ('CHAR_LITERAL', 'a')
                 return expr[1]
             elif node_type == 'STRING_LITERAL': # e.g., ('STRING_LITERAL', "hello")
                 return expr[1]
-            elif node_type == 'BOOLEAN_LITERAL': # e.g., ('BOOLEAN_LITERAL', True)
+            elif node_type == 'BOOLEAN_LITERAL':# e.g., ('BOOLEAN_LITERAL', True)
                 return expr[1]
             elif node_type == 'ID':           # e.g., ('ID', 'varname')
                 return expr[1] # The identifier name itself is the "value" here for quad generation
+            
+            # Handle array access: A[i]
+            elif node_type == 'array_access': # AST: ('array_access', array_name_str, index_expr_node)
+                array_name = expr[1]
+                index_expr_node = expr[2]
+                
+                index_result = self.generate_expression(index_expr_node) # Get the value of the index
+                
+                temp_array_val = self.new_temp()
+                # Quad: (op, array_name, index_val, result_temp)
+                # This signifies: result_temp = array_name[index_val]
+                self.code.append(('=[]', array_name, index_result, temp_array_val))
+                return temp_array_val
 
             # For binary operations like +, -, *, /, <, >, =, <=, >=, and, or
-            elif node_type in ('+', '-', '*', '/', '<', '>', '=', '<=', '>=', 'and', 'or'):
+            elif node_type in ('+', '-', '*', '/', '<', '>', '=', '<=', '>=', '<>', 'and', 'or'): # Added <> for inequality
                 if len(expr) == 3: # Binary operation
                     left_val = self.generate_expression(expr[1])
                     right_val = self.generate_expression(expr[2])
                     temp_result = self.new_temp()
                     self.code.append((node_type, left_val, right_val, temp_result))
                     return temp_result
-            # Handle unary 'not' if your AST supports it
-            elif node_type == 'not': # Example for unary not
+            # Handle unary 'not'
+            elif node_type == 'not': 
                 if len(expr) == 2: # Unary operation
                     operand_val = self.generate_expression(expr[1])
                     temp_result = self.new_temp()
-                    self.code.append((node_type, operand_val, '_', temp_result)) # Or specific format
+                    self.code.append((node_type, operand_val, '_', temp_result)) 
                     return temp_result
             # Potentially handle unary minus if your AST supports it
-            # elif op == 'uminus' and len(expr) == 2:
+            # elif node_type == 'uminus' and len(expr) == 2:
             #     operand_val = self.generate_expression(expr[1])
             #     temp_result = self.new_temp()
             #     self.code.append(('-', 0, operand_val, temp_result)) # Or a specific 'uminus' op

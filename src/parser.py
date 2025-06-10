@@ -40,6 +40,12 @@ tokens = (
     'DO',          # Represents the 'do' keyword
     'WRITELN',     # Represents the 'writeln' keyword
     'STRING',      # Represents string literals (which can be chars or strings)
+    # Array-related tokens
+    'ARRAY',       # Represents the 'array' keyword
+    'OF',          # Represents the 'of' keyword
+    'LSQUARE',     # Represents the '[' character
+    'RSQUARE',     # Represents the ']' character
+    'DOTDOT',      # Represents the '..' range operator
 )
 
 t_PLUS = r'\+'
@@ -62,6 +68,11 @@ t_LE = r'<='
 t_GE = r'>='
 # t_STRING = r'\'[^\']*\''  # Matches single-quoted strings
 t_STRING = r"\'([^\']|\'\')*\'" # Handles Pascal-style strings with '' for a single quote
+# Array-related token rules
+t_LSQUARE = r'\['
+t_RSQUARE = r'\]'
+t_DOTDOT = r'\.\.'
+
 
 # Reserved keywords mapping
 reserved = {
@@ -80,6 +91,9 @@ reserved = {
     'while': 'WHILE',
     'do': 'DO',
     'writeln': 'WRITELN',
+    # Array-related reserved words
+    'array': 'ARRAY',
+    'of': 'OF',
 }
 
 def t_ID(t):
@@ -139,12 +153,37 @@ def p_id_list(p):
     else:
         p[0] = [p[1]]
 
+# New rule for 'variable' which can be an ID or an array access
+def p_variable(p):
+    '''variable : ID
+                | ID LSQUARE expression RSQUARE'''
+    if len(p) == 2:  # Matched ID
+        p[0] = ('ID', p[1])  # AST node for simple variable
+    else:  # Matched ID LSQUARE expression RSQUARE
+        p[0] = ('array_access', p[1], p[3])  # AST node for array access
+
 def p_type(p):
     '''type : INTEGER
             | BOOLEAN
             | REAL
-            | CHAR'''
+            | CHAR
+            | array_type_definition''' # Added array type
     p[0] = p[1]
+
+# New rule for array type definition
+def p_array_type_definition(p):
+    '''array_type_definition : ARRAY LSQUARE index_range RSQUARE OF type'''
+    # p[3] is the index_range tuple (low_bound_node, high_bound_node)
+    # p[6] is the base_type_node
+    p[0] = ('array_type', p[3][0], p[3][1], p[6])
+
+# New rule for index range (assuming integer number literals for now)
+def p_index_range(p):
+    '''index_range : NUMBER DOTDOT NUMBER'''
+    # For simplicity, we directly use the NUMBER token's value.
+    # In a more complex scenario, these could be constant expressions.
+    p[0] = (('NUMBER', int(p[1])), ('NUMBER', int(p[3])))
+
 
 def p_statements(p):
     '''statements : statements statement SEMICOLON
@@ -167,7 +206,9 @@ def p_statement(p):
     p[0] = p[1]
 
 def p_assignment(p):
-    'assignment : ID ASSIGN expression'
+    'assignment : variable ASSIGN expression' # Use 'variable' for the left-hand side
+    # p[1] is the AST node from p_variable (e.g., ('ID', 'name') or ('array_access', 'name', index_expr))
+    # p[3] is the AST node for the expression on the right-hand side
     p[0] = ('assign', p[1], p[3])
 
 def p_if_statement(p):
@@ -193,7 +234,7 @@ def p_expression_list(p):
     '''expression_list : expression_list COMMA expression
                        | expression'''
     if len(p) > 2: # list COMMA expr
-        p[0] = p[1] + [p[2]]
+        p[0] = p[1] + [p[3]] # Corrected: p[3] is the expression after the comma
     else: # single expr
         p[0] = [p[1]]
 
@@ -232,28 +273,36 @@ def p_factor(p):
               | NUMBER
               | REAL_NUMBER
               | STRING
-              | ID'''
-    if len(p) == 4:  # LPAREN expression RPAREN
-        p[0] = p[2]
+              | variable'''  # Use 'variable' for ID or array access as r-value
+    
+    # Check the type of the first token in the slice to determine the rule matched
+    # For 'variable', p[1] will already be the AST tuple from p_variable.
+    # For literals, p[1] is the token value.
+    # For LPAREN, p[1] is '('.
+
+    # Check if the first symbol is LPAREN for (expression)
+    if p.slice[1].type == 'LPAREN':
+        p[0] = p[2]  # p[2] is the expression node
+    # Check if p[1] is a tuple, which means it came from 'variable' rule
+    elif isinstance(p[1], tuple) and (p[1][0] == 'ID' or p[1][0] == 'array_access'): # This means 'variable' was matched
+        p[0] = p[1] # p[1] is already the AST node from p_variable
+    # Otherwise, it must be one of the direct literals
     else:
-        token_type = p.slice[1].type
-        token_value = p[1]
+        token_type = p.slice[1].type # Get type of the token (NUMBER, REAL_NUMBER, STRING)
+        token_value = p[1]           # Get value of the token
+
         if token_type == 'NUMBER':
             p[0] = ('NUMBER', int(token_value))
         elif token_type == 'REAL_NUMBER':
             p[0] = ('REAL_NUMBER', float(token_value))
-        elif token_type == 'STRING': # Covers char and string literals
-            # raw_literal is like "'it''s'" or "'a'"
-            # content is like "it''s" or "a" (stripping outer quotes)
+        elif token_type == 'STRING':
             content = token_value[1:-1]
-            # processed_value is like "it's" or "a" (handling Pascal '' escape)
             processed_value = content.replace("''", "'")
             if len(processed_value) == 1:
-                p[0] = ('CHAR_LITERAL', processed_value) # AST node type for char
+                p[0] = ('CHAR_LITERAL', processed_value)
             else:
-                p[0] = ('STRING_LITERAL', processed_value) # AST node type for string
-        elif token_type == 'ID':
-            p[0] = ('ID', token_value)
+                p[0] = ('STRING_LITERAL', processed_value)
+        # Note: A plain 'ID' token without brackets is now handled by 'variable'
 
 def p_addop(p):
     '''addop : PLUS

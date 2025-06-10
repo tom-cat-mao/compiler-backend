@@ -95,7 +95,9 @@ def print_keyword_delimiter_tables():
     delimiter_type_to_symbol_map = {
         'SEMICOLON': ';', 'COLON': ':', 'COMMA': ',', 'ASSIGN': ':=', 'DOT': '.',
         'LPAREN': '(', 'RPAREN': ')', 'PLUS': '+', 'MINUS': '-', 'TIMES': '*',
-        'DIVIDE': '/', 'LT': '<', 'GT': '>', 'EQ': '=', 'LE': '<=', 'GE': '>='
+        'DIVIDE': '/', 'LT': '<', 'GT': '>', 'EQ': '=', 'LE': '<=', 'GE': '>=',
+        # Add array-related delimiters here as well
+        'LSQUARE': '[', 'RSQUARE': ']', 'DOTDOT': '..'
     }
     active_delimiters = {
         k: v for k, v in delimiter_type_to_symbol_map.items() if k in parser_tokens
@@ -182,7 +184,9 @@ def main(file_path):
     _delimiter_type_to_symbol_map = {
         'SEMICOLON': ';', 'COLON': ':', 'COMMA': ',', 'ASSIGN': ':=', 'DOT': '.',
         'LPAREN': '(', 'RPAREN': ')', 'PLUS': '+', 'MINUS': '-', 'TIMES': '*',
-        'DIVIDE': '/', 'LT': '<', 'GT': '>', 'EQ': '=', 'LE': '<=', 'GE': '>='
+        'DIVIDE': '/', 'LT': '<', 'GT': '>', 'EQ': '=', 'LE': '<=', 'GE': '>=',
+        # Add array-related delimiters
+        'LSQUARE': '[', 'RSQUARE': ']', 'DOTDOT': '..'
     }
     active_delimiter_type_to_symbol = {
         k: v for k, v in _delimiter_type_to_symbol_map.items() if k in parser_tokens
@@ -387,7 +391,7 @@ def print_ainfl(ainfl, analyzer_instance):
     print("-" * len(header))
     for i, entry in enumerate(ainfl):
         el_type_name = analyzer_instance.get_type_name_from_ptr(entry.get('ELEMENT_TYPE_PTR', -1))
-        print(f"{i:<3} | {el_type_name:<20} | {str(entry.get('LOWER_BOUND')):<6} | {str(entry.get('UPPER_BOUND')):<6} | {str(entry.get('SIZE')):<5}")
+        print(f"{i:<3} | {el_type_name:<20} | {str(entry.get('LOWER_BOUND')):<6} | {str(entry.get('UPPER_BOUND')):<6} | {str(entry.get('TOTAL_SIZE')):<5}")
 
 def print_consl(consl, analyzer_instance):
     print("\nCONSL (Constant Table):")
