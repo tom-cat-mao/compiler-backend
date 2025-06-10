@@ -32,28 +32,26 @@ Below is a complex example of a Pascal program that demonstrates the full workfl
 
 **Input Program**:
 ```pascal
-program ComplexExample;
+program Example;
+
 var
-  counter: integer;
-  total: integer;
-  isPositive: boolean;
+  numbers: array[1..3] of Integer;
+  j: Integer;
+
 begin
-  counter := 10;
-  total := 5 + 3; 
-  isPositive := counter > 0;
-  while counter > 0 do
+  j := 1;
+  while j <= 3 do
   begin
-    total := total + counter;
-    counter := counter - 1;
+    numbers[j] := j + 5;
+    j := j + 1;
   end;
-  if isPositive then
+
+  j := 1;
+  while j <= 3 do
   begin
-    writeln('Total is: ', total);
-  end
-  else
-  begin
-    writeln('Counter was not positive');
-  end
+    WriteLn('Value at index ', j, ': ', numbers[j]);
+    j := j + 1;
+  end;
 end.
 ```
 

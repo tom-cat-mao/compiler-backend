@@ -363,7 +363,7 @@ def parse(input_string, debug_parser=False):
     # Reset lexer for the parser. PLY's yacc.parse() will use this lexer instance.
     lexer.input(input_string) 
     ast = parser.parse(input_string, lexer=lexer, debug=debug_parser)
-    print(f"AST: {ast}") #if debug_parser else None  # Print AST if debugging is enabled
+    # print(f"AST: {ast}") #if debug_parser else None  # Print AST if debugging is enabled
     return collected_tokens, ast
 
 if __name__ == "__main__":
