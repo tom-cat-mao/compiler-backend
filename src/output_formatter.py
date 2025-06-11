@@ -64,7 +64,7 @@ def format_ainfl(ainfl, analyzer_instance):
     lines.append("-" * len(header))
     for i, entry in enumerate(ainfl):
         el_type_name = analyzer_instance.get_type_name_from_ptr(entry.get('ELEMENT_TYPE_PTR', -1))
-        lines.append(f"{i:<3} | {el_type_name:<20} | {str(entry.get('LOWER_BOUND')):<6} | {str(entry.get('UPPER_BOUND')):<6} | {str(entry.get('SIZE')):<5}")
+        lines.append(f"{i:<3} | {el_type_name:<20} | {str(entry.get('LOWER_BOUND')):<6} | {str(entry.get('UPPER_BOUND')):<6} | {str(entry.get('TOTAL_SIZE')):<5}")
     return "\n".join(lines)
 
 def format_consl(consl, analyzer_instance):
