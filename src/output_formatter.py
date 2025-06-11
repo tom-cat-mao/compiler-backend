@@ -3,22 +3,54 @@ def format_synbl(synbl, analyzer_instance):
     if not synbl:
         lines.append("SYNBL is empty.")
         return "\n".join(lines)
-    header = f"{'Idx':<3} | {'Name':<15} | {'Cat':<5} | {'Addr/Info':<20}"
+    # Header: Idx | Name | Type | Cat | Addr/Info
+    header = f"{'Idx':<3} | {'Name':<15} | {'Type':<20} | {'Cat':<7} | {'Addr/Info':<20}" # Adjusted Type width
     lines.append(header)
     lines.append("-" * len(header))
     for i, entry in enumerate(synbl):
-        addr_info_str = str(entry.get('ADDR_PTR'))
-        cat = entry.get('CAT')
+        name_str = str(entry.get('NAME', 'N/A'))
+        cat_str = str(entry.get('CAT', 'N/A'))
+        
+        type_ptr = entry.get('TYPE_PTR')
+        type_name_str = "N/A" 
+
+        if type_ptr is not None and analyzer_instance:
+            try:
+                is_array_var = False
+                # Check if it's a variable and if its type is an array
+                if cat_str == 'v': # It's a variable
+                    if 0 <= type_ptr < len(analyzer_instance.typel):
+                        typel_entry = analyzer_instance.typel[type_ptr]
+                        if typel_entry.get('KIND') == 'array':
+                            is_array_var = True
+                
+                if is_array_var:
+                    # For array variables, show the TYPEL pointer
+                    type_name_str = f"TYPEL_PTR:{type_ptr}"
+                else:
+                    # For non-array variables and other categories, get the descriptive type name
+                    type_name_str = analyzer_instance.get_type_name_from_ptr(type_ptr)
+            except Exception: # pylint: disable=broad-except
+                # Fallback if any error occurs during type resolution
+                type_name_str = f"TYPEL_PTR:{type_ptr} (Err)"
+        elif type_ptr is not None: # If analyzer_instance is None but type_ptr exists
+            type_name_str = f"TYPEL_PTR:{type_ptr}"
+        # If type_ptr is None, type_name_str remains "N/A"
+
         addr_ptr = entry.get('ADDR_PTR')
-        if cat == 'f' and isinstance(addr_ptr, int):
+        addr_info_str = "N/A" # Default
+        if cat_str == 'f' and isinstance(addr_ptr, int): # Function/Procedure
             addr_info_str = f"PFINFL_IDX:{addr_ptr}"
-        elif cat == 'c' and isinstance(addr_ptr, int):
+        elif cat_str == 'c' and isinstance(addr_ptr, int): # Constant
             addr_info_str = f"CONSL_IDX:{addr_ptr}"
-        elif cat in ['v', 'p_val', 'p_ref']:
-            addr_info_str = str(addr_ptr if addr_ptr is not None else "N/A")
-        elif cat == 'program_name' or cat == 't':
-            addr_info_str = "N/A"
-        lines.append(f"{i:<3} | {str(entry.get('NAME')):<15} | {str(cat):<5} | {addr_info_str:<20}")
+        elif cat_str in ['v', 'p_val', 'p_ref'] and addr_ptr is not None: # Variable or parameter
+            addr_info_str = str(addr_ptr)
+        elif cat_str == 't' and type_ptr is not None: # Type definition itself
+            addr_info_str = f"TYPEL_PTR:{type_ptr}"
+        elif cat_str == 'program_name':
+            addr_info_str = "-" # Or some other relevant info if available
+
+        lines.append(f"{i:<3} | {name_str:<15} | {type_name_str:<20} | {cat_str:<7} | {addr_info_str:<20}")
     return "\n".join(lines)
 
 def format_typel(typel):

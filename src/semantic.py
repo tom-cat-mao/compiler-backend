@@ -374,32 +374,6 @@ class SemanticAnalyzer:
         self.consl.append({'VALUE': value, 'TYPE_PTR': type_ptr})
         return len(self.consl) - 1
 
-    def _get_type_size(self, type_ptr):
-        """
-        Returns the size of a type in memory units (e.g., words).
-        Simplified: assumes basic types are size 1. Arrays/complex types might need more logic.
-        """
-        if type_ptr < 0 or type_ptr >= len(self.typel):
-            return 1 # Default size for unknown or unresolved types
-
-        type_info = self.typel[type_ptr]
-        kind = type_info.get('KIND')
-
-        if kind == 'basic':
-            # For simplicity, all basic types take 1 memory unit.
-            # Refine if different basic types have different sizes (e.g., REAL vs INTEGER).
-            return 1
-        elif kind == 'array':
-            # This is complex: could be size of descriptor or full array.
-            # For stack allocation of variable itself (not the array data), often 1 (pointer/descriptor).
-            # If full array is on stack, calculate from AINFL.
-            # ainfl_entry = self.ainfl[type_info['AINFL_PTR']]
-            # element_size = self._get_type_size(ainfl_entry['ELEMENT_TYPE_PTR'])
-            # num_elements = ainfl_entry['SIZE']
-            # return element_size * num_elements
-            return 1 # Simplified: size of an array variable on stack (e.g. pointer)
-        # Add other kinds (records, etc.)
-        return 1 # Default for other complex types
 
 
     def declare_symbol(self, name, category, type_name_or_struct, details=None):
