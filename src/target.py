@@ -1,7 +1,7 @@
 import re
 
 class TargetCodeGenerator:
-    def __init__(self):
+    def __init__(self, synbl=None, typel=None, ainfl=None): # MODIFIED
         self.assembly_code = []
         self.data_segment_lines = []
         self.code_segment_lines = []
@@ -9,6 +9,11 @@ class TargetCodeGenerator:
         self.string_literals = {}    # Stores original string content -> sanitized data label (e.g., STR1)
         self.label_uid_counter = 0   # For compiler-generated unique labels (e.g., for comparisons)
         self.string_label_counter = 0 # For unique labels for string data
+
+        # Store symbol table information passed from the semantic analyzer
+        self.synbl = synbl if synbl is not None else []
+        self.typel = typel if typel is not None else []
+        self.ainfl = ainfl if ainfl is not None else []
 
     def _new_uid_label(self, prefix="LBL"):
         self.label_uid_counter += 1
@@ -40,14 +45,61 @@ class TargetCodeGenerator:
             sanitized += "_var"
         return sanitized
 
-    def _declare_variable(self, var_name):
-        # This function should ONLY be called for actual variables that need memory.
-        sanitized_name = self._sanitize_identifier(var_name)
-        # Ensure it's a string, not '_', not purely numeric, and not already declared
-        if isinstance(var_name, str) and var_name != '_' and not var_name.isdigit() and \
-           sanitized_name not in self.declared_variables:
-            self.data_segment_lines.append(f"    {sanitized_name} DW ?") # Assume all variables are words
-            self.declared_variables.add(sanitized_name)
+    def _declare_variable(self, var_name_original): # MODIFIED
+        # This function uses symbol table info to declare variables correctly.
+        sanitized_name = self._sanitize_identifier(var_name_original)
+
+        if not (isinstance(var_name_original, str) and var_name_original != '_' and not var_name_original.isdigit()):
+            return None # Not a declarable variable name
+
+        if sanitized_name in self.declared_variables:
+            return sanitized_name # Already declared
+
+        # Try to find the variable in the symbol table (synbl)
+        symbol_entry = None
+        # Search in synbl for the original variable name
+        for entry in self.synbl: # Iterate through the provided synbl
+            if entry.get('NAME') == var_name_original and entry.get('CAT') == 'v':
+                symbol_entry = entry
+                break
+        
+        declaration_line = None
+
+        if symbol_entry: # If found in synbl, use its type information
+            type_ptr = symbol_entry.get('TYPE_PTR')
+            if type_ptr is not None and 0 <= type_ptr < len(self.typel):
+                type_info = self.typel[type_ptr]
+                type_kind = type_info.get('KIND')
+                
+                if type_kind == 'array':
+                    ainfl_ptr = type_info.get('AINFL_PTR')
+                    if ainfl_ptr is not None and 0 <= ainfl_ptr < len(self.ainfl):
+                        array_details = self.ainfl[ainfl_ptr]
+                        num_elements = array_details.get('NUM_ELEMENTS', 1)
+                        element_size_bytes = 2 # Default to WORD (DW)
+                        # Potentially, you could get element_size from ainfl if stored there
+                        # For example: element_typel_ptr = array_details.get('ELEMENT_TYPE_PTR')
+                        # if element_typel_ptr is not None and 0 <= element_typel_ptr < len(self.typel):
+                        #    element_type_info = self.typel[element_typel_ptr]
+                        #    element_size_bytes = element_type_info.get('SIZE', 2)
+                        
+                        directive = "DW" # Assuming WORD elements for now
+                        if num_elements > 0:
+                           declaration_line = f"    {sanitized_name} {directive} {num_elements} DUP(?)"
+                        else: # Should not happen for valid arrays
+                           declaration_line = f"    {sanitized_name} {directive} ?" 
+                elif type_kind == 'basic':
+                    # basic_size_bytes = type_info.get('SIZE', 2) # Get size from typel
+                    # directive = "DW" if basic_size_bytes == 2 else "DB" # Example
+                    declaration_line = f"    {sanitized_name} DW ?" # Assuming basic types are WORDs
+        
+        if not declaration_line:
+            # Default for temporaries not found in synbl or if type info is missing/basic
+            # This will catch compiler-generated temporaries like t0, t1, etc.
+            declaration_line = f"    {sanitized_name} DW ?"
+
+        self.data_segment_lines.append(declaration_line)
+        self.declared_variables.add(sanitized_name)
         return sanitized_name
 
     def _get_operand_assembly_str(self, operand_value, is_code_label_name=False):
@@ -84,24 +136,28 @@ class TargetCodeGenerator:
         self.declared_variables.clear()
         self.string_literals.clear()
         self.label_uid_counter = 0
-        self.string_label_counter = 0
+        self.string_label_counter = 0 
         
         # Operations whose 'res' field is a value to be stored (variable or temp)
-        value_producing_ops = {'=', '+', '-', '*', '/', '>', '<', '>=', '<=', '==', '!='}
+        value_producing_ops = {'=', '+', '-', '*', '/', '>', '<', '>=', '<=', '==', '!=', '=[]'} # ADDED '=[]'
         # Operations whose 'res' field is a code label name to be defined
         label_definition_ops = {'lb', 'ie'}
         # Operations whose 'res' field is a code label name used as a jump target
         label_target_ops = {'if', 'do', 'gt', 'el', 'we'}
 
+        # Pre-pass 1: Declare all variables defined in the source program (from SYNBL)
+        # This ensures arrays and other user-defined variables get correct sizes.
+        for symbol in self.synbl:
+            if symbol.get('CAT') == 'v': # Only process variables
+                self._declare_variable(symbol['NAME'])
 
-        # Pre-pass: Declare all actual variables and string literals.
+        # Pre-pass 2: Declare remaining temporaries from IR and string literals.
+        # Variables already declared in Pre-pass 1 will be skipped by _declare_variable.
         for op, arg1, arg2, res in intermediate_code_tuples:
             # Declare string literals if arg1 of 'write' is a string
             if op == 'write' and isinstance(arg1, str) and not (arg1.isdigit() or (arg1.startswith('-') and arg1[1:].isdigit())):
-                # Heuristic: if it's not already a known variable, treat as string literal
-                is_likely_new_string = self._sanitize_identifier(arg1) not in self.declared_variables
-                
-                if is_likely_new_string and arg1 not in self.string_literals:
+                potential_var_sanitized = self._sanitize_identifier(arg1)
+                if potential_var_sanitized not in self.declared_variables and arg1 not in self.string_literals:
                     str_data_label = self._new_string_label() 
                     self.string_literals[arg1] = str_data_label 
                     # Escape single quotes within the string content for assembly syntax
@@ -109,10 +165,10 @@ class TargetCodeGenerator:
                     self.data_segment_lines.append(f"    {str_data_label} DB '{escaped_arg1_content}', '$'")
 
             # Declare variables from operands (arg1, arg2) if they are identifiers
+            # These will likely be temporaries if not caught by Pre-pass 1
             if isinstance(arg1, str) and arg1 != '_' and not arg1.isdigit():
-                 # Avoid declaring if it's a string literal we just handled for 'write'
                 if not (op == 'write' and arg1 in self.string_literals):
-                    self._declare_variable(arg1)
+                    self._declare_variable(arg1) 
             
             if isinstance(arg2, str) and arg2 != '_' and not arg2.isdigit():
                 self._declare_variable(arg2)
@@ -216,6 +272,57 @@ class TargetCodeGenerator:
             
             elif op == 'wh': # While-head marker
                 self.code_segment_lines.append(f"    ; While head marker (wh)")
+            
+            elif op == '[]=': # Array store: array_name[index] = value
+                              # IR: ('[]=', value, index, array_name)
+                # arg1_asm is value, arg2_asm is index, res_asm is array_name
+                if arg1_asm and arg2_asm and res_asm:
+                    # Load value to store into AX
+                    self._load_to_reg("AX", arg1_asm) # AX = value
+                    
+                    # Load index into SI
+                    self._load_to_reg("SI", arg2_asm) # SI = index
+                    
+                    # Assuming 1-based indexing and WORD elements (2 bytes)
+                    self.code_segment_lines.append(f"    DEC SI")       # Adjust for 0-based: SI = index - 1
+                    self.code_segment_lines.append(f"    SHL SI, 1")    # SI = (index - 1) * 2 (byte offset)
+                    
+                    # Get base address of array into BX
+                    # res_asm for array_name will be like '[myArray_var]', we need 'myArray_var' for LEA
+                    array_base_name = res.strip('[]') # Get 'myArray_var' from '[myArray_var]'
+                    sanitized_array_base_name = self._sanitize_identifier(array_base_name)
+                    self.code_segment_lines.append(f"    LEA BX, {sanitized_array_base_name}") # BX = address of array
+                    
+                    # Store value: MOV [BX+SI], AX
+                    self.code_segment_lines.append(f"    MOV [BX+SI], AX")
+                else:
+                    self.code_segment_lines.append(f"    ; Error generating []= for {arg1}, {arg2}, {res}")
+
+            elif op == '=[]': # Array fetch: result_temp = array_name[index]
+                              # IR: ('=[]', array_name, index, result_temp)
+                # arg1_asm is array_name, arg2_asm is index, res_asm is result_temp
+                if arg1_asm and arg2_asm and res_asm:
+                    # Load index into SI
+                    self._load_to_reg("SI", arg2_asm) # SI = index
+
+                    # Assuming 1-based indexing and WORD elements (2 bytes)
+                    self.code_segment_lines.append(f"    DEC SI")       # Adjust for 0-based: SI = index - 1
+                    self.code_segment_lines.append(f"    SHL SI, 1")    # SI = (index - 1) * 2 (byte offset)
+
+                    # Get base address of array into BX
+                    # arg1_asm for array_name will be like '[myArray_var]'
+                    array_base_name = arg1.strip('[]') 
+                    sanitized_array_base_name = self._sanitize_identifier(array_base_name)
+                    self.code_segment_lines.append(f"    LEA BX, {sanitized_array_base_name}") # BX = address of array
+
+                    # Fetch value: MOV AX, [BX+SI]
+                    self.code_segment_lines.append(f"    MOV AX, [BX+SI]")
+                    
+                    # Store in result_temp
+                    self.code_segment_lines.append(f"    MOV {res_asm}, AX") # result_temp = AX
+                else:
+                    self.code_segment_lines.append(f"    ; Error generating =[] for {arg1}, {arg2}, {res}")
+            
             else: 
                 self.code_segment_lines.append(f"    ; TODO: Unhandled op: {op} {arg1} {arg2} {res}")
 

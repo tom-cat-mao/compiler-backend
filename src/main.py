@@ -157,7 +157,18 @@ def main(file_path):
 
     # Generate Target Code (Assembly)
     if optimized_code: # Proceed only if there's optimized code
-        target_generator = TargetCodeGenerator()
+        if all_symbol_tables: # Ensure symbol tables are available
+            target_generator = TargetCodeGenerator(
+                synbl=all_symbol_tables.get("SYNBL"),
+                typel=all_symbol_tables.get("TYPEL"),
+                ainfl=all_symbol_tables.get("AINFL")
+            )
+        else:
+            # Fallback if symbol tables weren't generated (e.g., due to earlier errors)
+            # Or, you might choose to raise an error here if symbol tables are essential
+            print("Warning: Symbol tables not available for TargetCodeGenerator. Using defaults.")
+            target_generator = TargetCodeGenerator()
+            
         assembly_code_lines = target_generator.generate(optimized_code)
         
         result_dir = "result"

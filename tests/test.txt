@@ -1,21 +1,23 @@
-program ArrayWhileExample;
-
+program SimpleArrayLoop;
 var
-  myArray: array[1..5] of Integer;
   i: Integer;
+  data: array[1..3] of Integer;
+  sum: Integer;
 
 begin
+  data[1] := 5;
+  data[2] := 10;
+  data[3] := 15;
+
+  sum := 0;
   i := 1;
-  while i <= 5 do
+
+  while i <= 3 do
   begin
-    myArray[i] := i * 10;
+    sum := sum + data[i];
+    WriteLn('Element ', i, ' is ', data[i]);
     i := i + 1;
   end;
 
-  i := 1;
-  while i <= 5 do
-  begin
-    WriteLn('Element ', i, ': ', myArray[i]);
-    i := i + 1;
-  end;
+  WriteLn('Total sum: ', sum);
 end.
