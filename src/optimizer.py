@@ -420,40 +420,6 @@ class Optimizer:
 
         return all_optimized_code
 
-    def optimize_block(self, block):
-        optimized_block = []
-
-        i = 0
-        while i < len(block):
-            instr = block[i]
-            op, arg1, arg2, res = instr
-
-            # --- Add handling for array operations ---
-            if op == '[]=': # Array store: array_name[index_val] = value_to_store
-                # For now, no specific optimization, just include it
-                optimized_block.append(instr)
-                i += 1
-                continue
-            elif op == '=[]': # Array fetch: result_temp = array_name[index_val]
-                # For now, no specific optimization, just include it
-                optimized_block.append(instr)
-                i += 1
-                continue
-            # --- End of new handling ---
-
-            # ... (your existing optimization rules for other ops like '+', '=', 'if', etc.) ...
-            
-            # Example of a default case if other ops are not handled:
-            # else:
-            #     print(f"Warning (opt_block): Unhandled op '{op}'") # This is where your warning comes from
-            #     optimized_block.append(instr)
-            #     i += 1
-            
-            # If you have a more structured way (e.g., a dictionary of handlers), add them there.
-            # If your default is just to append unhandled ops, the warnings would stop if
-            # the 'else' block that prints the warning is removed or made more specific.
-
-        return optimized_block
 
 
 if __name__ == "__main__":
